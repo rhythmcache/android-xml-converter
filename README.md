@@ -11,5 +11,6 @@ The converted data will be outputted to `STDOUT`, so if you want to save the fil
 `abx2xml file_path_here.xml > processed_file_path.xml`
 
 
-Credits : [@android-bits](https://github.com/cclgroupltd/android-bits/tree/main/ccl_abx)
+### Credit
+[@android-bits](https://github.com/cclgroupltd/android-bits/tree/main/ccl_abx)
 
