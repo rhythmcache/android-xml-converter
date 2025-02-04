@@ -1,5 +1,5 @@
 # android-xml-converter
-This is just an experimental code to convert between android xml formats (abx and xml) . functionality is not guaranteed.
+This is just an experimental code to convert between android xml formats (abx and xml). functionality is not guaranteed.
 
 ### Command line usage
 
