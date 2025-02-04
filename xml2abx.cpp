@@ -329,42 +329,59 @@ private:
 };
 
 void print_usage() {
-    std::cerr << "Usage: xml2abx -i <input-path> -o <output-path>\n";
+    std::cerr << "usage: xml2abx -i input [output]\n"
+              << "Converts between human-readable XML and Android Binary XML.\n\n"
+              << "When output is not specified, the input file will be overwritten.\n";
 }
+
 int main(int argc, char* argv[]) {
+    if (argc < 3) { // Need at least program name, -i, and input path
+        print_usage();
+        return 1;
+    }
+
     std::string input_path;
     std::string output_path;
+    bool found_i = false;
+    
+    // Parse arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-i") {
             if (++i < argc) {
                 input_path = argv[i];
+                found_i = true;
             } else {
                 std::cerr << "Error: -i requires an input path\n";
                 print_usage();
                 return 1;
             }
-        } else if (arg == "-o") {
-            if (++i < argc) {
-                output_path = argv[i];
-            } else {
-                std::cerr << "Error: -o requires an output path\n";
-                print_usage();
-                return 1;
-            }
+        } else if (found_i && output_path.empty() && arg[0] != '-') {
+            // If we've found -i and this is not a flag, treat it as output path
+            output_path = arg;
+        } else {
+            std::cerr << "Error: Unknown argument '" << arg << "'\n";
+            print_usage();
+            return 1;
         }
     }
-    if (input_path.empty() || output_path.empty()) {
-        std::cerr << "Error: Both input and output paths are required\n";
+
+    if (!found_i) {
+        std::cerr << "Error: -i argument is required\n";
         print_usage();
         return 1;
+    }
+
+    // If no output path specified, use input path
+    if (output_path.empty()) {
+        output_path = input_path;
     }
 
     try {
         XmlToAbxConverter::convert(input_path, output_path);
         std::cout << "Successfully converted " << input_path << " to " << output_path << std::endl;
     } catch (const std::exception& e) {
-        std::cerr << "Conversion failed: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
 
