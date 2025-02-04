@@ -1,20 +1,201 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <string>
-#include <memory>
-#include <stdexcept>
-#include <cstdint>
-#include <iomanip>
-#include <sstream>
-#include <unordered_map>
 #include <stack>
+#include <stdexcept>
 #include <algorithm>
-#include <variant>
+#include <cctype>
+#include <cstdint>
 #include <cstring>
+#include <map>
 
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+
+class XmlNode {
+public:
+    enum class Type { ELEMENT, TEXT, CDATA, COMMENT };
+
+    Type type;
+    std::string name;
+    std::string text;
+    std::vector<std::pair<std::string, std::string>> attributes;
+    std::vector<XmlNode> children;
+
+    XmlNode(Type t, const std::string& n = "") : type(t), name(n) {}
+};
+
+class XmlParser {
+private:
+    std::string xml_content;
+    size_t pos = 0;
+    std::string trim(const std::string& str) {
+        auto start = std::find_if_not(str.begin(), str.end(), ::isspace);
+        auto end = std::find_if_not(str.rbegin(), str.rend(), ::isspace).base();
+        return (start < end) ? std::string(start, end) : "";
+    }
+    void skip_whitespace() {
+        while (pos < xml_content.length() && ::isspace(xml_content[pos])) pos++;
+    }
+    std::pair<std::string, std::string> parse_attribute() {
+        skip_whitespace();
+        size_t name_end = xml_content.find_first_of("=", pos);
+        if (name_end == std::string::npos)
+            throw std::runtime_error("Invalid attribute format");
+
+        std::string name = trim(xml_content.substr(pos, name_end - pos));
+        pos = name_end + 1;
+        skip_whitespace();
+        char quote = xml_content[pos];
+        if (quote != '"' && quote != '\'')
+            throw std::runtime_error("Attribute value must be quoted");
+
+        pos++;
+        size_t value_end = xml_content.find(quote, pos);
+        if (value_end == std::string::npos)
+            throw std::runtime_error("Unclosed attribute value");
+
+        std::string value = xml_content.substr(pos, value_end - pos);
+        pos = value_end + 1;
+
+        return {name, value};
+    }
+    XmlNode parse_comment() {
+        if (xml_content.substr(pos, 4) != "<!--")
+            throw std::runtime_error("Expected comment start");
+
+        pos += 4;
+        size_t comment_end = xml_content.find("-->", pos);
+        if (comment_end == std::string::npos)
+            throw std::runtime_error("Unclosed comment");
+
+        std::string comment_text = xml_content.substr(pos, comment_end - pos);
+        pos = comment_end + 3;
+
+        XmlNode node(XmlNode::Type::COMMENT);
+        node.text = comment_text;
+        return node;
+    }
+    XmlNode parse_cdata() {
+        if (xml_content.substr(pos, 9) != "<![CDATA[")
+            throw std::runtime_error("Expected CDATA start");
+
+        pos += 9;
+        size_t cdata_end = xml_content.find("]]>", pos);
+        if (cdata_end == std::string::npos)
+            throw std::runtime_error("Unclosed CDATA section");
+
+        std::string cdata_text = xml_content.substr(pos, cdata_end - pos);
+        pos = cdata_end + 3; // Skip "]]>"
+
+        XmlNode node(XmlNode::Type::CDATA);
+        node.text = cdata_text;
+        return node;
+    }
+
+    // Parse XML node
+    XmlNode parse_node() {
+        skip_whitespace();
+        if (xml_content.substr(pos, 4) == "<!--")
+            return parse_comment();
+        if (xml_content.substr(pos, 9) == "<![CDATA[")
+            return parse_cdata();
+
+        // Check for opening tag
+        if (xml_content[pos] != '<')
+            throw std::runtime_error("Expected opening tag");
+
+        pos++;
+        skip_whitespace();
+        if (xml_content[pos] == '/')
+            throw std::runtime_error("Unexpected closing tag");
+
+        // Parse tag name (including namespace prefix if present)
+        size_t name_end = xml_content.find_first_of(" />", pos);
+        std::string tag_name = xml_content.substr(pos, name_end - pos);
+        pos = name_end;
+
+        // Create node
+        XmlNode node(XmlNode::Type::ELEMENT, tag_name);
+
+        // Parse attributes
+        skip_whitespace();
+        while (pos < xml_content.length() &&
+               xml_content[pos] != '>' &&
+               xml_content[pos] != '/') {
+            node.attributes.push_back(parse_attribute());
+            skip_whitespace();
+        }
+
+        // Check for self-closing tag
+        bool is_self_closing = false;
+        if (xml_content[pos] == '/') {
+            is_self_closing = true;
+            pos++;
+        }
+
+        // Close tag
+        if (xml_content[pos] != '>')
+            throw std::runtime_error("Expected '>' to close tag");
+        pos++;
+
+        // If self-closing, return node
+        if (is_self_closing)
+            return node;
+
+        // Parse children and text
+        while (pos < xml_content.length()) {
+            skip_whitespace();
+
+            // Check for closing tag
+            if (xml_content.substr(pos, 2) == "</") {
+                pos += 2;
+                skip_whitespace();
+
+                // Verify closing tag matches opening tag
+                size_t close_end = xml_content.find('>', pos);
+                std::string closing_tag = trim(xml_content.substr(pos, close_end - pos));
+
+                if (closing_tag != tag_name)
+                    throw std::runtime_error("Mismatched closing tag");
+
+                pos = close_end + 1;
+                break;
+            }
+            if (xml_content[pos] == '<') {
+                node.children.push_back(parse_node());
+            } else {
+                // Text content
+                size_t text_end = xml_content.find('<', pos);
+                std::string text = trim(xml_content.substr(pos, text_end - pos));
+
+                if (!text.empty()) {
+                    XmlNode text_node(XmlNode::Type::TEXT);
+                    text_node.text = text;
+                    node.children.push_back(text_node);
+                }
+
+                pos = text_end;
+            }
+        }
+
+        return node;
+    }
+
+public:
+    XmlNode parse(const std::string& xml) {
+        xml_content = xml;
+        pos = 0;
+        if (xml_content.substr(0, 5) == "<?xml") {
+            size_t decl_end = xml_content.find("?>", 5);
+            if (decl_end != std::string::npos)
+                pos = decl_end + 2;
+        }
+
+        return parse_node();
+    }
+};
+
 
 class AbxWriter {
 public:
@@ -41,6 +222,8 @@ public:
         if (!output_stream) {
             throw std::runtime_error("Could not open output file");
         }
+
+        // Write magic number
         const char magic[] = "ABX\0";
         output_stream.write(magic, 4);
     }
@@ -109,57 +292,37 @@ private:
 class XmlToAbxConverter {
 public:
     static void convert(const std::string& input_path, const std::string& output_path) {
-        xmlInitParser();
-        LIBXML_TEST_VERSION
-
-        try {
-            xmlDocPtr doc = xmlParseFile(input_path.c_str());
-            if (doc == nullptr) {
-                throw std::runtime_error("Failed to parse XML file");
-            }
-            AbxWriter writer(output_path);
-            writer.write_start_document();
-            xmlNodePtr root = xmlDocGetRootElement(doc);
-            process_node(writer, root);
-            writer.write_end_document();
-            xmlFreeDoc(doc);
-        } catch (const std::exception& e) {
-            std::cerr << "Error: " << e.what() << std::endl;
-            throw;
+        // Read entire XML file
+        std::ifstream input_file(input_path);
+        if (!input_file) {
+            throw std::runtime_error("Could not open input file");
         }
-        xmlCleanupParser();
+        
+        std::string xml_content((std::istreambuf_iterator<char>(input_file)),
+                                 std::istreambuf_iterator<char>());
+        XmlParser parser;
+        XmlNode root = parser.parse(xml_content);
+        AbxWriter writer(output_path);
+        writer.write_start_document();
+        process_node(writer, root);
+        writer.write_end_document();
     }
 
 private:
-    static void process_node(AbxWriter& writer, xmlNodePtr node) {
-        for (xmlNodePtr current = node; current; current = current->next) {
-            if (current->type == XML_ELEMENT_NODE) {
-                std::string tag_name = reinterpret_cast<const char*>(current->name);
-                writer.write_start_tag(tag_name);
-
-                // Process attributes
-                for (xmlAttrPtr attr = current->properties; attr; attr = attr->next) {
-                    std::string attr_name = reinterpret_cast<const char*>(attr->name);
-                    xmlChar* content = xmlNodeListGetString(attr->doc, attr->children, 1);
-                    if (content) {
-                        std::string attr_value = reinterpret_cast<const char*>(content);
-                        writer.write_attribute(attr_name, attr_value);
-                        xmlFree(content);
-                    }
-                }
-
-                // Process child nodes and text
-                if (current->children) {
-                    process_node(writer, current->children);
-                }
-
-                writer.write_end_tag(tag_name);
+    static void process_node(AbxWriter& writer, const XmlNode& node) {
+        if (node.type == XmlNode::Type::ELEMENT) {
+            writer.write_start_tag(node.name);
+            for (const auto& attr : node.attributes) {
+                writer.write_attribute(attr.first, attr.second);
             }
-            else if (current->type == XML_TEXT_NODE) {
-                std::string text = reinterpret_cast<const char*>(current->content);
-                if (!std::all_of(text.begin(), text.end(), ::isspace)) {
-                    writer.write_text(text);
-                }
+            for (const auto& child : node.children) {
+                process_node(writer, child);
+            }
+            writer.write_end_tag(node.name);
+        }
+        else if (node.type == XmlNode::Type::TEXT) {
+            if (!std::all_of(node.text.begin(), node.text.end(), ::isspace)) {
+                writer.write_text(node.text);
             }
         }
     }
@@ -168,7 +331,6 @@ private:
 void print_usage() {
     std::cerr << "Usage: xml2abx -i <input-path> -o <output-path>\n";
 }
-
 int main(int argc, char* argv[]) {
     std::string input_path;
     std::string output_path;
