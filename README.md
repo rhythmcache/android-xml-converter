@@ -8,8 +8,8 @@ This is just an experimental code to convert between android xml formats (abx an
 - `xml2abx -i input-path.xml -o output-path.xml`
 
 
-### Credit
-[@android-bits](https://github.com/cclgroupltd/android-bits/tree/main/ccl_abx) : logic
+### Credits
+[@android-bits](https://github.com/cclgroupltd/android-bits/tree/main/ccl_abx) : abx2xml logic
 
 ---
 
