@@ -351,17 +351,26 @@ public:
 };
 
 void print_usage() {
-    std::cerr << "Usage: abx2xml [-mr] -i <input-path> -o <output-path>\n"
+    std::cerr << "usage: abx2xml [-mr] -i input [output]\n"
+              << "Converts between human-readable XML and Android Binary XML.\n\n"
               << "Options:\n"
               << "  -mr     Enable multi-root XML parsing\n"
-              << "  -i      Input ABX file path\n"
-              << "  -o      Output XML file path\n";
+              << "  -i      Specify input file (required)\n\n"
+              << "When output is not specified, the input file will be overwritten.\n";
 }
 
 int main(int argc, char* argv[]) {
+    if (argc < 3) { // Need at least program name, -i, and input path
+        print_usage();
+        return 1;
+    }
+
     bool multi_root = false;
     std::string input_path;
     std::string output_path;
+    bool found_i = false;
+    
+    // Parse arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-mr") {
@@ -369,41 +378,50 @@ int main(int argc, char* argv[]) {
         } else if (arg == "-i") {
             if (++i < argc) {
                 input_path = argv[i];
+                found_i = true;
             } else {
                 std::cerr << "Error: -i requires an input path\n";
                 print_usage();
                 return 1;
             }
-        } else if (arg == "-o") {
-            if (++i < argc) {
-                output_path = argv[i];
-            } else {
-                std::cerr << "Error: -o requires an output path\n";
-                print_usage();
-                return 1;
-            }
+        } else if (found_i && output_path.empty() && arg[0] != '-') {
+            // If we've found -i and this is not a flag, treat it as output path
+            output_path = arg;
         } else {
             std::cerr << "Error: Unknown argument '" << arg << "'\n";
             print_usage();
             return 1;
         }
     }
-    if (input_path.empty() || output_path.empty()) {
-        std::cerr << "Error: Both input and output paths are required\n";
+
+    if (!found_i) {
+        std::cerr << "Error: -i argument is required\n";
         print_usage();
         return 1;
+    }
+
+    // If no output path specified, use input path
+    if (output_path.empty()) {
+        output_path = input_path;
     }
 
     try {
         AbxReader reader(input_path);
         auto doc = reader.read(multi_root);
+
         std::ofstream output_file(output_path);
         if (!output_file) {
             std::cerr << "Error: Could not open output file '" << output_path << "'\n";
             return 1;
         }
+
+        // Redirect cout to output file
         auto old_buf = std::cout.rdbuf(output_file.rdbuf());
+        
+        // Write XML
         reader.print_xml(doc);
+        
+        // Restore cout
         std::cout.rdbuf(old_buf);
 
         std::cerr << "Successfully converted " << input_path << " to " << output_path 
