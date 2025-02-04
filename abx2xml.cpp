@@ -350,22 +350,64 @@ public:
     }
 };
 
+void print_usage() {
+    std::cerr << "Usage: abx2xml [-mr] -i <input-path> -o <output-path>\n"
+              << "Options:\n"
+              << "  -mr     Enable multi-root XML parsing\n"
+              << "  -i      Input ABX file path\n"
+              << "  -o      Output XML file path\n";
+}
+
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <abx_file> [-mr]" << std::endl;
+    bool multi_root = false;
+    std::string input_path;
+    std::string output_path;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-mr") {
+            multi_root = true;
+        } else if (arg == "-i") {
+            if (++i < argc) {
+                input_path = argv[i];
+            } else {
+                std::cerr << "Error: -i requires an input path\n";
+                print_usage();
+                return 1;
+            }
+        } else if (arg == "-o") {
+            if (++i < argc) {
+                output_path = argv[i];
+            } else {
+                std::cerr << "Error: -o requires an output path\n";
+                print_usage();
+                return 1;
+            }
+        } else {
+            std::cerr << "Error: Unknown argument '" << arg << "'\n";
+            print_usage();
+            return 1;
+        }
+    }
+    if (input_path.empty() || output_path.empty()) {
+        std::cerr << "Error: Both input and output paths are required\n";
+        print_usage();
         return 1;
     }
 
-    bool multi_root = false;
-    for (int i = 2; i < argc; ++i) {
-        if (std::string(argv[i]) == "-mr")
-            multi_root = true;
-    }
-
     try {
-        AbxReader reader(argv[1]);
+        AbxReader reader(input_path);
         auto doc = reader.read(multi_root);
+        std::ofstream output_file(output_path);
+        if (!output_file) {
+            std::cerr << "Error: Could not open output file '" << output_path << "'\n";
+            return 1;
+        }
+        auto old_buf = std::cout.rdbuf(output_file.rdbuf());
         reader.print_xml(doc);
+        std::cout.rdbuf(old_buf);
+
+        std::cerr << "Successfully converted " << input_path << " to " << output_path 
+                  << (multi_root ? " (multi-root mode)" : "") << std::endl;
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
