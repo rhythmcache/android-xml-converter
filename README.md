@@ -4,11 +4,7 @@ Python module for reading Android Binary XML (ABX) files and converting them bac
 ## Command line usage
 To convert an ABX file at the command line:
 
-`abx2xml file_path_here.xml`
-
-The converted data will be outputted to `STDOUT`, so if you want to save the file you can redirect the output:
-
-`abx2xml file_path_here.xml > processed_file_path.xml`
+`abx2xml -i file_path_here.xml -o output_file_path_here.xml`
 
 
 ### Credit
