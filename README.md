@@ -9,8 +9,9 @@ This is just an experimental code to convert between android xml formats (abx an
 
 ### Command line usage
 
-`abx2xml -i input-path.xml -o output-path.xml`
-`xml2abx -i input-path.xml -o output-path xml`
+- `abx2xml -i input-path.xml -o output-path.xml`
+- 
+- `xml2abx -i input-path.xml -o output-path xml`
 
 
 ### Credit
