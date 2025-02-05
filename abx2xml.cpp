@@ -77,6 +77,7 @@ public:
     explicit AbxDecodeError(const std::string& msg) : std::runtime_error(msg) {}
 };
 
+
 class AbxReader {
 private:
     std::ifstream stream;
@@ -152,6 +153,54 @@ private:
         return interned_strings[reference];
     }
 
+    void skip_header_extension() {
+        // Read and skip any extension data after the magic number
+        while (true) {
+            uint8_t token = read_byte();
+            if ((token & 0x0f) == static_cast<uint8_t>(XmlType::START_DOCUMENT)) {
+                // Found the start of the actual document
+                stream.seekg(-1, std::ios::cur);  // Go back one byte
+                break;
+            }
+            
+            // Skip extension data based on type
+            uint8_t data_type = token & 0xf0;
+            switch (static_cast<DataType>(data_type)) {
+                case DataType::TYPE_NULL:
+                    break;
+                case DataType::TYPE_INT:
+                    read_int();
+                    break;
+                case DataType::TYPE_LONG:
+                    read_long();
+                    break;
+                case DataType::TYPE_FLOAT:
+                    read_float();
+                    break;
+                case DataType::TYPE_DOUBLE:
+                    read_double();
+                    break;
+                case DataType::TYPE_STRING:
+                case DataType::TYPE_STRING_INTERNED:
+                    read_string_raw();
+                    break;
+                case DataType::TYPE_BYTES_HEX:
+                case DataType::TYPE_BYTES_BASE64:
+                    {
+                        uint16_t length = read_short();
+                        stream.seekg(length, std::ios::cur);
+                    }
+                    break;
+                default:
+                    // For unknown types, try to skip based on the lower 4 bits
+                    if ((token & 0x0f) > 0) {
+                        stream.seekg(token & 0x0f, std::ios::cur);
+                    }
+                    break;
+            }
+        }
+    }
+
 public:
     explicit AbxReader(const std::string& filename) {
         stream.open(filename, std::ios::binary);
@@ -164,6 +213,9 @@ public:
         char magic_check[4];
         if (!stream.read(magic_check, 4) || memcmp(magic_check, MAGIC, 4) != 0)
             throw AbxDecodeError("Invalid magic number");
+
+        // Skip any header extension data
+        skip_header_extension();
 
         bool document_opened = true;
         bool root_closed = false;
@@ -231,6 +283,9 @@ public:
                 // Ignore whitespace
                 if (std::all_of(value.begin(), value.end(), ::isspace))
                     continue;
+
+                if (element_stack.empty())
+                    throw AbxDecodeError("Unexpected TEXT outside of element");
 
                 if (element_stack.back()->text.empty())
                     element_stack.back()->text = value;
@@ -312,7 +367,20 @@ public:
                 element_stack.back()->attrib[attribute_name] = value;
             }
             else {
-                throw AbxDecodeError("Unexpected XML type");
+                // Try to skip unknown token types
+                if (data_type != 0) {
+                    switch (static_cast<DataType>(data_type)) {
+                        case DataType::TYPE_INT:
+                            read_int();
+                            break;
+                        case DataType::TYPE_STRING:
+                        case DataType::TYPE_STRING_INTERNED:
+                            read_string_raw();
+                            break;
+                        default:
+                            throw AbxDecodeError("Unexpected XML type");
+                    }
+                }
             }
         }
 
@@ -349,6 +417,8 @@ public:
         std::cout << "</" << element->tag << ">" << std::endl;
     }
 };
+
+
 
 void print_usage() {
     std::cerr << "usage: abx2xml [-mr] [-i] input [output]\n\n"
