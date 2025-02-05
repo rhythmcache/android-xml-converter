@@ -351,16 +351,15 @@ public:
 };
 
 void print_usage() {
-    std::cerr << "usage: abx2xml [-mr] -i input [output]\n"
+    std::cerr << "usage: abx2xml [-mr] [-i] input [output]\n\n"
               << "Converts between human-readable XML and Android Binary XML.\n\n"
-              << "Options:\n"
-              << "  -mr     Enable multi-root XML parsing\n"
-              << "  -i      Specify input file (required)\n\n"
-              << "When output is not specified, the input file will be overwritten.\n";
+              << "When invoked with the '-i' argument, the output of a successful conversion\n"
+              << "will overwrite the original input file. Input can be '-' to use stdin, and\n"
+              << "output can be '-' to use stdout\n\n";
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 3) { // Need at least program name, -i, and input path
+    if (argc < 2) {
         print_usage();
         return 1;
     }
@@ -368,40 +367,56 @@ int main(int argc, char* argv[]) {
     bool multi_root = false;
     std::string input_path;
     std::string output_path;
-    bool found_i = false;
+    bool explicit_input = false;
+    bool output_to_stdout = false;
     
-    // Parse arguments
+    // Argument parsing
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
+        
         if (arg == "-mr") {
             multi_root = true;
-        } else if (arg == "-i") {
-            if (++i < argc) {
-                input_path = argv[i];
-                found_i = true;
-            } else {
-                std::cerr << "Error: -i requires an input path\n";
-                print_usage();
-                return 1;
-            }
-        } else if (found_i && output_path.empty() && arg[0] != '-') {
-            // If we've found -i and this is not a flag, treat it as output path
+        } 
+        else if (arg == "-i") {
+            explicit_input = true;
+        } 
+        else if (input_path.empty()) {
+            input_path = arg;
+        } 
+        else if (output_path.empty()) {
             output_path = arg;
-        } else {
-            std::cerr << "Error: Unknown argument '" << arg << "'\n";
+        } 
+        else {
+            std::cerr << "Error: Too many arguments\n";
             print_usage();
             return 1;
         }
     }
 
-    if (!found_i) {
-        std::cerr << "Error: -i argument is required\n";
+    // Validation and path handling
+    if (input_path.empty()) {
+        std::cerr << "Error: No input file specified\n";
         print_usage();
         return 1;
     }
-
-    // If no output path specified, use input path
+    
     if (output_path.empty()) {
+        if (explicit_input) {
+            // When -i is used, overwrite input file
+            output_path = input_path;
+        } else {
+            output_path = input_path;
+            size_t dot_pos = output_path.find_last_of('.');
+            if (dot_pos != std::string::npos) {
+                output_path = output_path.substr(0, dot_pos) + ".xml";
+            } else {
+                output_path += ".xml";
+            }
+        }
+    }
+    
+    output_to_stdout = (output_path == "-");
+    if (output_to_stdout) {
         output_path = input_path;
     }
 
@@ -409,23 +424,24 @@ int main(int argc, char* argv[]) {
         AbxReader reader(input_path);
         auto doc = reader.read(multi_root);
 
-        std::ofstream output_file(output_path);
-        if (!output_file) {
-            std::cerr << "Error: Could not open output file '" << output_path << "'\n";
-            return 1;
+        if (output_to_stdout) {
+            reader.print_xml(doc);
+        } else {
+            std::ofstream output_file(output_path, std::ios::out | std::ios::trunc);
+            if (!output_file) {
+                std::cerr << "Error: Could not open output file '" << output_path << "'\n";
+                return 1;
+            }
+            
+            auto old_buf = std::cout.rdbuf(output_file.rdbuf());
+            reader.print_xml(doc);
+            std::cout.rdbuf(old_buf);
         }
 
-        // Redirect cout to output file
-        auto old_buf = std::cout.rdbuf(output_file.rdbuf());
-        
-        // Write XML
-        reader.print_xml(doc);
-        
-        // Restore cout
-        std::cout.rdbuf(old_buf);
-
-        std::cerr << "Successfully converted " << input_path << " to " << output_path 
-                  << (multi_root ? " (multi-root mode)" : "") << std::endl;
+        std::cerr << "Successfully converted " << input_path 
+                   << " to " << output_path 
+                   << (multi_root ? " (multi-root mode)" : "") 
+                   << std::endl;
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
