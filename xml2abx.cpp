@@ -329,52 +329,56 @@ private:
 };
 
 void print_usage() {
-    std::cerr << "usage: xml2abx -i input [output]\n"
+    std::cerr << "usage: xml2abx [-i] input [output]\n"
+              << "\n"
               << "Converts between human-readable XML and Android Binary XML.\n\n"
-              << "When output is not specified, the input file will be overwritten.\n";
+              << "When invoked with the '-i' argument, the output of a successful conversion\n"
+              << "will overwrite the original input file\n";
 }
 
+
 int main(int argc, char* argv[]) {
-    if (argc < 3) { // Need at least program name, -i, and input path
+    if (argc < 2) { // Need at least input path
         print_usage();
         return 1;
     }
 
     std::string input_path;
     std::string output_path;
-    bool found_i = false;
+    bool overwrite_input = false;
     
-    // Parse arguments
+    //  arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-i") {
-            if (++i < argc) {
-                input_path = argv[i];
-                found_i = true;
-            } else {
-                std::cerr << "Error: -i requires an input path\n";
-                print_usage();
-                return 1;
-            }
-        } else if (found_i && output_path.empty() && arg[0] != '-') {
-            // If we've found -i and this is not a flag, treat it as output path
+            overwrite_input = true;
+        } else if (input_path.empty()) {
+            input_path = arg;
+        } else if (output_path.empty()) {
             output_path = arg;
         } else {
-            std::cerr << "Error: Unknown argument '" << arg << "'\n";
+            std::cerr << "Error: Too many arguments\n";
             print_usage();
             return 1;
         }
     }
 
-    if (!found_i) {
-        std::cerr << "Error: -i argument is required\n";
+    // Validate input path
+    if (input_path.empty()) {
+        std::cerr << "Error: Input path is required\n";
         print_usage();
         return 1;
     }
 
-    // If no output path specified, use input path
+    // Determine output path
     if (output_path.empty()) {
-        output_path = input_path;
+        if (overwrite_input) {
+            output_path = input_path;
+        } else {
+            std::cerr << "Error: Output path is required\n";
+            print_usage();
+            return 1;
+        }
     }
 
     try {
