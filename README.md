@@ -3,9 +3,9 @@ This is just an experimental code to convert between android xml formats (abx an
 
 ### Command line usage
 
-- `abx2xml -i input [output]`
+- `abx2xml [-i] input [output]`
 
-- `xml2abx -i input [output]`
+- `xml2abx [-i] input [output]`
 
 
 ### Credits
