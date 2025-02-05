@@ -1,3 +1,8 @@
+/*
+This C++ implementation originates from:
+https://github.com/rhythmcache/android-xml-converter/blob/main/xml2abx.cpp
+*/
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
