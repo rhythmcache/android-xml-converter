@@ -1,4 +1,13 @@
 /*
+ * This code is NOT LICENSED. You may use, modify, and distribute it freely. 
+ * However, if you modify it, you MUST include this exact text at the top of the file. 
+ * There is no warranty, and if it breaks, you get to keep both pieces. 
+ * Attribution is appreciated but not required. 
+ * Breaking this rule will not have legal consequences, but it will make me sad. :(
+ */
+
+
+/*
 This C++ implementation originates from:
 https://github.com/rhythmcache/android-xml-converter/
 */
