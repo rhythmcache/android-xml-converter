@@ -294,17 +294,25 @@ private:
     }
 };
 
+
 class XmlToAbxConverter {
 public:
     static void convert(const std::string& input_path, const std::string& output_path) {
-        // Read entire XML file
-        std::ifstream input_file(input_path);
-        if (!input_file) {
-            throw std::runtime_error("Could not open input file");
-        }
+        std::string xml_content;
         
-        std::string xml_content((std::istreambuf_iterator<char>(input_file)),
-                                 std::istreambuf_iterator<char>());
+        if (input_path == "-") {
+            // Read from stdin
+            xml_content = read_from_stdin();
+        } else {
+            // Read from file
+            std::ifstream input_file(input_path);
+            if (!input_file) {
+                throw std::runtime_error("Could not open input file");
+            }
+            xml_content = std::string((std::istreambuf_iterator<char>(input_file)),
+                                     std::istreambuf_iterator<char>());
+        }
+
         XmlParser parser;
         XmlNode root = parser.parse(xml_content);
         AbxWriter writer(output_path);
@@ -314,6 +322,12 @@ public:
     }
 
 private:
+    static std::string read_from_stdin() {
+        std::stringstream buffer;
+        buffer << std::cin.rdbuf();
+        return buffer.str();
+        }
+        
     static void process_node(AbxWriter& writer, const XmlNode& node) {
         if (node.type == XmlNode::Type::ELEMENT) {
             writer.write_start_tag(node.name);
@@ -338,12 +352,14 @@ void print_usage() {
               << "\n"
               << "Converts between human-readable XML and Android Binary XML.\n\n"
               << "When invoked with the '-i' argument, the output of a successful conversion\n"
-              << "will overwrite the original input file\n";
+              << "will overwrite the original input file\n"
+              << "\n"
+              << "Use '-' as input to read from stdin. When reading from stdin,\n"
+              << "output path must be specified.\n";
 }
 
-
 int main(int argc, char* argv[]) {
-    if (argc < 2) { // Need at least input path
+    if (argc < 2) {
         print_usage();
         return 1;
     }
@@ -352,7 +368,7 @@ int main(int argc, char* argv[]) {
     std::string output_path;
     bool overwrite_input = false;
     
-    //  arguments
+    // Parse arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-i") {
@@ -378,6 +394,11 @@ int main(int argc, char* argv[]) {
     // Determine output path
     if (output_path.empty()) {
         if (overwrite_input) {
+            if (input_path == "-") {
+                std::cerr << "Error: Cannot overwrite stdin, output path is required\n";
+                print_usage();
+                return 1;
+            }
             output_path = input_path;
         } else {
             std::cerr << "Error: Output path is required\n";
@@ -388,7 +409,8 @@ int main(int argc, char* argv[]) {
 
     try {
         XmlToAbxConverter::convert(input_path, output_path);
-        std::cout << "Successfully converted " << input_path << " to " << output_path << std::endl;
+        std::cout << "Successfully converted " << (input_path == "-" ? "stdin" : input_path) 
+                  << " to " << output_path << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
