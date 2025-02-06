@@ -457,6 +457,7 @@ public:
 void print_usage() {
     std::cerr << "usage: abx2xml [-mr] [-i] input [output]\n\n"
               << "Converts between human-readable XML and Android Binary XML.\n\n"
+              << " [-mr] : Enable Multi-Root Processing.\n"
               << "When invoked with the '-i' argument, the output of a successful conversion\n"
               << "will overwrite the original input file. output can be '-' to use stdout\n\n";
 }
