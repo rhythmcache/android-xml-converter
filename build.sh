@@ -1,7 +1,7 @@
 #!/bin/bash
 
-NDK_PATH="" #Android NDK PATH
-DIR="" #Directory where abx2xml.xpp and xml2abx.cpp are located
+NDK_PATH="" # Your Android NDK PATH
+DIR="$(pwd)" #Directory where abx2xml.xpp and xml2abx.cpp are located
 OUTPUT_DIR="$DIR/build"
 
 # Create output directory
