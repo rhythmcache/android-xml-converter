@@ -13,6 +13,3 @@ This is just an experimental code to convert between android xml formats (abx an
 
 ---
 
-- improvements and pull requests are always welcome
-
-
