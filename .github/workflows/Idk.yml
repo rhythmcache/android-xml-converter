@@ -1,0 +1,105 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, i686, aarch64, armv7]
+        include:
+          - arch: x86_64
+            cross: x86_64-linux-gnu-
+          - arch: i686
+            cross: i686-linux-gnu-
+          - arch: aarch64
+            cross: aarch64-linux-gnu-
+          - arch: armv7
+            cross: arm-linux-gnueabi-
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install cross-compilation toolchains
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          g++ \
+          gcc-x86-64-linux-gnu \
+          g++-x86-64-linux-gnu \
+          gcc-i686-linux-gnu \
+          g++-i686-linux-gnu \
+          gcc-aarch64-linux-gnu \
+          g++-aarch64-linux-gnu \
+          gcc-arm-linux-gnueabi \
+          g++-arm-linux-gnueabi
+
+    - name: Build for ${{ matrix.arch }}
+      run: |
+        mkdir -p build/${{ matrix.arch }}
+        ${{ matrix.cross }}g++ abx2xml.cpp -o build/${{ matrix.arch }}/abx2xml
+        ${{ matrix.cross }}g++ xml2abx.cpp -o build/${{ matrix.arch }}/xml2abx
+
+    - name: Upload ${{ matrix.arch }} binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: binaries-${{ matrix.arch }}
+        path: build/${{ matrix.arch }}/*
+
+  android-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        abi: [armeabi-v7a, arm64-v8a, x86, x86_64]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r26b
+        local-cache: true
+
+    - name: Build Android binaries
+      env:
+        ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_ROOT }}
+      run: |
+        mkdir -p build/android/${{ matrix.abi }}
+        
+        # Set up compiler based on ABI
+        case ${{ matrix.abi }} in
+          armeabi-v7a)
+            TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi21-clang++
+            ;;
+          arm64-v8a)
+            TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++
+            ;;
+          x86)
+            TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android21-clang++
+            ;;
+          x86_64)
+            TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang++
+            ;;
+        esac
+        
+        $TOOLCHAIN abx2xml.cpp -o build/android/${{ matrix.abi }}/abx2xml
+        $TOOLCHAIN xml2abx.cpp -o build/android/${{ matrix.abi }}/xml2abx
+
+    - name: Upload Android binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-binaries-${{ matrix.abi }}
+        path: build/android/${{ matrix.abi }}/*
