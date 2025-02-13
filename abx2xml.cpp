@@ -425,6 +425,10 @@ public:
     }
 
     void print_xml(const std::shared_ptr<XMLElement>& element, int indent = 0) {
+    if (indent == 0) {  // Only print declaration for root element
+        std::cout << "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>\n";
+    }
+        
         std::string indentation(indent, ' ');
         std::cout << indentation << "<" << element->tag;
         
