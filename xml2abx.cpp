@@ -32,13 +32,56 @@ https://github.com/rhythmcache/android-xml-converter/
 #include <map>
 #include <unordered_map>
 #include <memory>
+#include <regex>
 
 
 void show_warning(const std::string& feature, const std::string& details = "") {
-    std::cerr << "WARNING: " << feature << " is not supported and will be lost." << std::endl;
+    std::cerr << "WARNING: " << feature << " is not supported and might* be lost." << std::endl;
     if (!details.empty()) {
         std::cerr << "  " << details << std::endl;
     }
+}
+
+std::string decode_xml_entities(const std::string& text) {
+    std::string result = text;
+    size_t pos = 0;
+    while ((pos = result.find("&lt;", pos)) != std::string::npos) {
+        result.replace(pos, 4, "<");
+        pos += 1;
+    }
+    pos = 0;
+    while ((pos = result.find("&gt;", pos)) != std::string::npos) {
+        result.replace(pos, 4, ">");
+        pos += 1;
+    }
+    pos = 0;
+    while ((pos = result.find("&amp;", pos)) != std::string::npos) {
+        result.replace(pos, 5, "&");
+        pos += 1;
+    }
+    pos = 0;
+    while ((pos = result.find("&quot;", pos)) != std::string::npos) {
+        result.replace(pos, 6, "\"");
+        pos += 1;
+    }
+    pos = 0;
+    while ((pos = result.find("&apos;", pos)) != std::string::npos) {
+        result.replace(pos, 6, "'");
+        pos += 1;
+    }
+    std::regex numeric_entity(R"(&#(\d+);)");
+    std::regex hex_entity(R"(&#x([0-9A-Fa-f]+);)");
+    std::smatch match;
+    while (std::regex_search(result, match, numeric_entity)) {
+        int code = std::stoi(match[1].str());
+        result.replace(match.position(), match.length(), std::string(1, static_cast<char>(code)));
+    }
+    while (std::regex_search(result, match, hex_entity)) {
+        int code = std::stoi(match[1].str(), nullptr, 16);
+        result.replace(match.position(), match.length(), std::string(1, static_cast<char>(code)));
+    }
+    
+    return result;
 }
 
 class XmlNode {
@@ -98,6 +141,9 @@ private:
     std::string value = xml_content.substr(pos, value_end - pos);
     pos = value_end + 1;
 
+    // DECODE XML ENTITIES IN ATTRIBUTE VALUE
+    value = decode_xml_entities(value);
+
     return {name, value};
 }
     XmlNode parse_comment() {
@@ -152,12 +198,12 @@ private:
     }
 
     XmlNode parse_doctype() {
-       if (xml_content.substr(pos, 9) != "<!DOCTYPE")
-           throw std::runtime_error("Expected DOCTYPE start");
+    if (xml_content.substr(pos, 9) != "<!DOCTYPE")
+        throw std::runtime_error("Expected DOCTYPE start");
 
-       pos += 9;
-       int depth = 1;
-       size_t doctype_end = pos;
+    pos += 9;
+    int depth = 1;
+    size_t doctype_end = pos;
     
     while (doctype_end < xml_content.length() && depth > 0) {
         if (xml_content[doctype_end] == '[') {
@@ -180,6 +226,7 @@ private:
     node.text = doctype_text;
     return node;
 }
+
         XmlNode parse_node() {
         skip_whitespace();
         
@@ -262,10 +309,10 @@ pos = name_end;
 
                 // Always preserve text content, including whitespace
                 if (!text.empty()) {
-                    XmlNode text_node(XmlNode::Type::TEXT);
-                    text_node.text = text;
-                    node.children.push_back(text_node);
-                }
+    XmlNode text_node(XmlNode::Type::TEXT);
+    text_node.text = decode_xml_entities(text);  
+    node.children.push_back(text_node);
+}
 
                 pos = text_end;
             }
@@ -868,4 +915,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
