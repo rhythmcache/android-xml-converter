@@ -152,22 +152,34 @@ private:
     }
 
     XmlNode parse_doctype() {
-        if (xml_content.substr(pos, 9) != "<!DOCTYPE")
-            throw std::runtime_error("Expected DOCTYPE start");
+       if (xml_content.substr(pos, 9) != "<!DOCTYPE")
+           throw std::runtime_error("Expected DOCTYPE start");
 
-        pos += 9;
-        size_t doctype_end = xml_content.find('>', pos);
-        if (doctype_end == std::string::npos)
-            throw std::runtime_error("Unclosed DOCTYPE");
-
-        std::string doctype_text = xml_content.substr(pos, doctype_end - pos);
-        pos = doctype_end + 1;
-
-        XmlNode node(XmlNode::Type::DOCDECL);
-        node.text = doctype_text;
-        return node;
+       pos += 9;
+       int depth = 1;
+       size_t doctype_end = pos;
+    
+    while (doctype_end < xml_content.length() && depth > 0) {
+        if (xml_content[doctype_end] == '[') {
+            depth++;
+        } else if (xml_content[doctype_end] == ']') {
+            depth--;
+        } else if (xml_content[doctype_end] == '>' && depth == 1) {
+            break;
+        }
+        doctype_end++;
     }
 
+    if (doctype_end >= xml_content.length())
+        throw std::runtime_error("Unclosed DOCTYPE");
+
+    std::string doctype_text = xml_content.substr(pos, doctype_end - pos);
+    pos = doctype_end + 1;
+
+    XmlNode node(XmlNode::Type::DOCDECL);
+    node.text = doctype_text;
+    return node;
+}
         XmlNode parse_node() {
         skip_whitespace();
         
