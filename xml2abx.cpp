@@ -227,99 +227,95 @@ private:
     return node;
 }
 
-        XmlNode parse_node() {
-        skip_whitespace();
-        
-        if (pos >= xml_content.length()) {
-            throw std::runtime_error("Unexpected end of document");
-        }
-        
-        if (xml_content.substr(pos, 4) == "<!--")
-            return parse_comment();
-        if (xml_content.substr(pos, 9) == "<![CDATA[")
-            return parse_cdata();
-        if (xml_content.substr(pos, 2) == "<?")
-            return parse_processing_instruction();
-        if (xml_content.substr(pos, 9) == "<!DOCTYPE")
-            return parse_doctype();
-        if (xml_content[pos] != '<')
-            throw std::runtime_error("Expected opening tag");
-
-        pos++;
-        skip_whitespace();
-        if (xml_content[pos] == '/')
-            throw std::runtime_error("Unexpected closing tag");
-
-        size_t name_end = xml_content.find_first_of(" />", pos);
-std::string tag_name = xml_content.substr(pos, name_end - pos);
-
-// Check for prefixed element names
-if (tag_name.find(':') != std::string::npos && !namespace_warning_shown) {
-    show_warning("Namespaces and prefixes", "Found prefixed element: " + tag_name);
-    namespace_warning_shown = true;
-}
-
-pos = name_end;
-
-        XmlNode node(XmlNode::Type::ELEMENT, tag_name);
-
-        skip_whitespace();
-        while (pos < xml_content.length() &&
-               xml_content[pos] != '>' &&
-               xml_content[pos] != '/') {
-            node.attributes.push_back(parse_attribute());
-            skip_whitespace();
-        }
-
-        bool is_self_closing = false;
-        if (xml_content[pos] == '/') {
-            is_self_closing = true;
-            pos++;
-        }
-
-        if (xml_content[pos] != '>')
-            throw std::runtime_error("Expected '>' to close tag");
-        pos++;
-
-        if (is_self_closing)
-            return node;
-
-        // Don't skip whitespace after opening tag
-        // Skipping might break indentation and newlines
-        while (pos < xml_content.length()) {
-            if (xml_content.substr(pos, 2) == "</") {
-                pos += 2;
-                skip_whitespace();
-
-                size_t close_end = xml_content.find('>', pos);
-                std::string closing_tag = trim(xml_content.substr(pos, close_end - pos));
-
-                if (closing_tag != tag_name)
-                    throw std::runtime_error("Mismatched closing tag: expected " + tag_name + ", got " + closing_tag);
-
-                pos = close_end + 1;
-                break;
-            }
-            
-            if (xml_content[pos] == '<') {
-                node.children.push_back(parse_node());
-            } else {
-                size_t text_end = xml_content.find('<', pos);
-                std::string text = xml_content.substr(pos, text_end - pos);
-
-                // Always preserve text content, including whitespace
-                if (!text.empty()) {
-    XmlNode text_node(XmlNode::Type::TEXT);
-    text_node.text = decode_xml_entities(text);  
-    node.children.push_back(text_node);
-}
-
-                pos = text_end;
-            }
-        }
-
-        return node;
+XmlNode parse_node() {
+    skip_whitespace();
+    if (pos >= xml_content.length()) {
+        throw std::runtime_error("Unexpected end of document");
     }
+    if (xml_content.substr(pos, 4) == "<!--")
+        return parse_comment();
+    if (xml_content.substr(pos, 9) == "<![CDATA[")
+        return parse_cdata();
+    if (xml_content.substr(pos, 2) == "<?")
+        return parse_processing_instruction();
+    if (xml_content.substr(pos, 9) == "<!DOCTYPE")
+        return parse_doctype();
+    if (xml_content[pos] != '<')
+        throw std::runtime_error("Expected opening tag");
+    pos++;
+    skip_whitespace();
+    if (xml_content[pos] == '/')
+        throw std::runtime_error("Unexpected closing tag");
+    
+    size_t name_end = xml_content.find_first_of(" />", pos);
+    std::string tag_name = xml_content.substr(pos, name_end - pos);
+    if (tag_name.find(':') != std::string::npos && !namespace_warning_shown) {
+        show_warning("Namespaces and prefixes", "Found prefixed element: " + tag_name);
+        namespace_warning_shown = true;
+    }
+    pos = name_end;
+    
+    XmlNode node(XmlNode::Type::ELEMENT, tag_name);
+    skip_whitespace();
+    
+    // Parse attributes - this is the fixed section
+    while (pos < xml_content.length()) {
+        skip_whitespace();
+        if (pos >= xml_content.length()) break;
+        
+        // Check for end of opening tag
+        if (xml_content[pos] == '>') {
+            break;
+        } else if (xml_content[pos] == '/' && pos + 1 < xml_content.length() && xml_content[pos + 1] == '>') {
+            break;
+        }
+        
+        // Parse attribute
+        node.attributes.push_back(parse_attribute());
+    }
+    
+    bool is_self_closing = false;
+    if (pos < xml_content.length() && xml_content[pos] == '/') {
+        is_self_closing = true;
+        pos++;
+    }
+    if (pos >= xml_content.length() || xml_content[pos] != '>')
+        throw std::runtime_error("Expected '>' to close tag");
+    pos++;
+    
+    if (is_self_closing)
+        return node;
+    
+    // Parse content and children
+    while (pos < xml_content.length()) {
+        if (xml_content.substr(pos, 2) == "</") {
+            pos += 2;
+            skip_whitespace();
+
+            size_t close_end = xml_content.find('>', pos);
+            std::string closing_tag = trim(xml_content.substr(pos, close_end - pos));
+
+            if (closing_tag != tag_name)
+                throw std::runtime_error("Mismatched closing tag: expected " + tag_name + ", got " + closing_tag);
+
+            pos = close_end + 1;
+            break;
+        }
+        if (xml_content[pos] == '<') {
+            node.children.push_back(parse_node());
+        } else {
+            size_t text_end = xml_content.find('<', pos);
+            std::string text = xml_content.substr(pos, text_end - pos);
+            if (!text.empty()) {
+                XmlNode text_node(XmlNode::Type::TEXT);
+                text_node.text = decode_xml_entities(text);  
+                node.children.push_back(text_node);
+            }
+            pos = text_end;
+        }
+    }
+    return node;
+}
 
 public:
     XmlNode parse(const std::string& xml) {
