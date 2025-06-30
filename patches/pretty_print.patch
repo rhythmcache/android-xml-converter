@@ -1,0 +1,393 @@
+@@ -7,6 +7,7 @@
+ #include <iostream>
+ #include <map>
+ #include <memory>
++#include <pugixml.hpp>
+ #include <sstream>
+ #include <stdexcept>
+ #include <string>
+@@ -210,7 +211,7 @@
+ 
+  private:
+   std::unique_ptr<FastDataInput> mIn;
+-  std::ostream& mOut;
++  std::ostringstream mTempOut;
+ 
+   std::string bytesToHex(const std::vector<uint8_t>& bytes) {
+     std::stringstream ss;
+@@ -225,49 +226,49 @@
+     uint8_t type = token & 0xF0;
+     std::string name = mIn->readInternedUTF();
+ 
+-    mOut << " " << name << "=\"";
++    mTempOut << " " << name << "=\"";
+ 
+     switch (type) {
+       case TYPE_STRING:
+-        mOut << encode_xml_entities(mIn->readUTF());
++        mTempOut << encode_xml_entities(mIn->readUTF());
+         break;
+       case TYPE_STRING_INTERNED:
+-        mOut << encode_xml_entities(mIn->readInternedUTF());
++        mTempOut << encode_xml_entities(mIn->readInternedUTF());
+         break;
+       case TYPE_INT:
+-        mOut << mIn->readInt();
++        mTempOut << mIn->readInt();
+         break;
+       case TYPE_INT_HEX:
+-        mOut << "0x" << std::hex << mIn->readInt() << std::dec;
++        mTempOut << "0x" << std::hex << mIn->readInt() << std::dec;
+         break;
+       case TYPE_LONG:
+-        mOut << mIn->readLong();
++        mTempOut << mIn->readLong();
+         break;
+       case TYPE_LONG_HEX:
+-        mOut << "0x" << std::hex << mIn->readLong() << std::dec;
++        mTempOut << "0x" << std::hex << mIn->readLong() << std::dec;
+         break;
+       case TYPE_FLOAT:
+-        mOut << mIn->readFloat();
++        mTempOut << mIn->readFloat();
+         break;
+       case TYPE_DOUBLE:
+-        mOut << mIn->readDouble();
++        mTempOut << mIn->readDouble();
+         break;
+       case TYPE_BOOLEAN_TRUE:
+-        mOut << "true";
++        mTempOut << "true";
+         break;
+       case TYPE_BOOLEAN_FALSE:
+-        mOut << "false";
++        mTempOut << "false";
+         break;
+       case TYPE_BYTES_HEX: {
+         uint16_t length = mIn->readShort();
+         std::vector<uint8_t> bytes = mIn->readBytes(length);
+-        mOut << bytesToHex(bytes);
++        mTempOut << bytesToHex(bytes);
+         break;
+       }
+       case TYPE_BYTES_BASE64: {
+         uint16_t length = mIn->readShort();
+         std::vector<uint8_t> bytes = mIn->readBytes(length);
+-        mOut << base64_encode(bytes.data(), bytes.size());
++        mTempOut << base64_encode(bytes.data(), bytes.size());
+         break;
+       }
+       default:
+@@ -275,12 +276,12 @@
+                                  std::to_string(type));
+     }
+ 
+-    mOut << "\"";
++    mTempOut << "\"";
+   }
+ 
+  public:
+   // Constructor for stdin input
+-  BinaryXmlDeserializer(std::istream& is, std::ostream& os) : mOut(os) {
++  BinaryXmlDeserializer(std::istream& is) {
+     mIn = std::make_unique<FastDataInput>(is);
+ 
+     // Check magic header
+@@ -296,7 +297,7 @@
+   }
+ 
+   // Constructor for file-based input
+-  BinaryXmlDeserializer(std::ifstream& is, std::ostream& os) : mOut(os) {
++  BinaryXmlDeserializer(std::ifstream& is) {
+     mIn = std::make_unique<FastDataInput>(is);
+ 
+     // Check magic header
+@@ -312,8 +313,7 @@
+   }
+ 
+   // Constructor for memory-based input
+-  BinaryXmlDeserializer(const std::vector<char>& data, std::ostream& os)
+-      : mOut(os) {
++  BinaryXmlDeserializer(const std::vector<char>& data) {
+     mIn = std::make_unique<FastDataInput>(data);
+ 
+     // Check magic header
+@@ -328,8 +328,8 @@
+     }
+   }
+ 
+-  void deserialize() {
+-    mOut << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
++  std::string deserialize() {
++    mTempOut << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+ 
+     while (!mIn->eof()) {
+       try {
+@@ -339,17 +339,19 @@
+ 
+         switch (command) {
+           case START_DOCUMENT:
+-
++            // Already handled with XML declaration
+             break;
+ 
+           case END_DOCUMENT:
+-            return;
++            return mTempOut.str();
+ 
+           case START_TAG: {
+             std::string tagName = mIn->readInternedUTF();
+-            mOut << "<" << tagName;
++            mTempOut << "<" << tagName;
+ 
++            // Look ahead for attributes
+             while (true) {
++              // Save current position
+               std::streampos pos = mIn->tellg();
+ 
+               try {
+@@ -357,22 +359,24 @@
+                 if ((nextToken & 0x0F) == ATTRIBUTE) {
+                   processAttribute(nextToken);
+                 } else {
++                  // Not an attribute, restore position
+                   mIn->seekg(pos);
+                   break;
+                 }
+               } catch (...) {
++                // End of stream or error, restore position
+                 mIn->seekg(pos);
+                 break;
+               }
+             }
+ 
+-            mOut << ">";
++            mTempOut << ">";
+             break;
+           }
+ 
+           case END_TAG: {
+             std::string tagName = mIn->readInternedUTF();
+-            mOut << "</" << tagName << ">";
++            mTempOut << "</" << tagName << ">";
+             break;
+           }
+ 
+@@ -380,7 +384,7 @@
+             if (type == TYPE_STRING) {
+               std::string text = mIn->readUTF();
+               if (!text.empty()) {
+-                mOut << encode_xml_entities(text);
++                mTempOut << encode_xml_entities(text);
+               }
+             }
+             break;
+@@ -388,42 +392,42 @@
+           case CDSECT:
+             if (type == TYPE_STRING) {
+               std::string text = mIn->readUTF();
+-              mOut << "<![CDATA[" << text << "]]>";
++              mTempOut << "<![CDATA[" << text << "]]>";
+             }
+             break;
+ 
+           case COMMENT:
+             if (type == TYPE_STRING) {
+               std::string text = mIn->readUTF();
+-              mOut << "<!--" << text << "-->";
++              mTempOut << "<!--" << text << "-->";
+             }
+             break;
+ 
+           case PROCESSING_INSTRUCTION:
+             if (type == TYPE_STRING) {
+               std::string text = mIn->readUTF();
+-              mOut << "<?" << text << "?>";
++              mTempOut << "<?" << text << "?>";
+             }
+             break;
+ 
+           case DOCDECL:
+             if (type == TYPE_STRING) {
+               std::string text = mIn->readUTF();
+-              mOut << "<!DOCTYPE " << text << ">";
++              mTempOut << "<!DOCTYPE " << text << ">";
+             }
+             break;
+ 
+           case ENTITY_REF:
+             if (type == TYPE_STRING) {
+               std::string text = mIn->readUTF();
+-              mOut << "&" << text << ";";
++              mTempOut << "&" << text << ";";
+             }
+             break;
+ 
+           case IGNORABLE_WHITESPACE:
+             if (type == TYPE_STRING) {
+               std::string text = mIn->readUTF();
+-              mOut << text;
++              mTempOut << text;
+             }
+             break;
+ 
+@@ -438,6 +442,8 @@
+         break;
+       }
+     }
++
++    return mTempOut.str();
+   }
+ };
+ 
+@@ -448,60 +454,79 @@
+  public:
+   static void convert(const std::string& input_path,
+                       const std::string& output_path) {
++    // Check if we need to do in-place conversion
+     if (input_path == output_path) {
+       convertInPlace(input_path);
+       return;
+     }
+ 
+-    std::ostream* output;
+-    std::ofstream output_file;
+-
+-    if (output_path == "-") {
+-      output = &std::cout;
+-    } else {
+-      output_file.open(output_path);
+-      if (!output_file) {
+-        throw std::runtime_error("Could not open output file: " + output_path);
+-      }
+-      output = &output_file;
+-    }
++    std::string xml_content;
+ 
+     if (input_path == "-") {
+       // Read from stdin
+-      BinaryXmlDeserializer deserializer(std::cin, *output);
+-      deserializer.deserialize();
++      BinaryXmlDeserializer deserializer(std::cin);
++      xml_content = deserializer.deserialize();
+     } else {
+       // Read from file
+       std::ifstream input_file(input_path, std::ios::binary);
+       if (!input_file) {
+         throw std::runtime_error("Could not open input file: " + input_path);
+       }
+-      BinaryXmlDeserializer deserializer(input_file, *output);
+-      deserializer.deserialize();
++      BinaryXmlDeserializer deserializer(input_file);
++      xml_content = deserializer.deserialize();
++    }
++
++    // Pretty print
++    std::string pretty_xml = prettyPrintXml(xml_content);
++
++    // Write output
++    if (output_path == "-") {
++      std::cout << pretty_xml;
++    } else {
++      std::ofstream output_file(output_path);
++      if (!output_file) {
++        throw std::runtime_error("Could not open output file: " + output_path);
++      }
++      output_file << pretty_xml;
+     }
+   }
+ 
+   static void convertFromStdin(const std::string& output_path) {
+-    std::ostream* output;
+-    std::ofstream output_file;
++    BinaryXmlDeserializer deserializer(std::cin);
++    std::string xml_content = deserializer.deserialize();
++
++    // Pretty print
++    std::string pretty_xml = prettyPrintXml(xml_content);
+ 
+     if (output_path == "-") {
+-      output = &std::cout;
++      std::cout << pretty_xml;
+     } else {
+-      output_file.open(output_path);
++      std::ofstream output_file(output_path);
+       if (!output_file) {
+         throw std::runtime_error("Could not open output file: " + output_path);
+       }
+-      output = &output_file;
++      output_file << pretty_xml;
+     }
+-
+-    BinaryXmlDeserializer deserializer(std::cin, *output);
+-    deserializer.deserialize();
+   }
+ 
+  private:
++  static std::string prettyPrintXml(const std::string& xml_content) {
++    pugi::xml_document doc;
++    pugi::xml_parse_result result = doc.load_string(xml_content.c_str());
++
++    if (!result) {
++      std::cerr << "Warning: Failed to parse XML for pretty printing: "
++                << result.description() << std::endl;
++      std::cerr << "Returning original XML content..." << std::endl;
++      return xml_content;
++    }
++
++    std::ostringstream output;
++    doc.save(output, "  ", pugi::format_default | pugi::format_indent);
++    return output.str();
++  }
++
+   static void convertInPlace(const std::string& file_path) {
+-    // Read entire file into memory first
+     std::ifstream input_file(file_path, std::ios::binary);
+     if (!input_file) {
+       throw std::runtime_error("Could not open input file: " + file_path);
+@@ -515,10 +540,12 @@
+     input_file.read(file_data.data(), file_data.size());
+     input_file.close();
+ 
+-    // Convert from memory to string stream
+-    std::ostringstream output_stream;
+-    BinaryXmlDeserializer deserializer(file_data, output_stream);
+-    deserializer.deserialize();
++    // Convert from memory to string
++    BinaryXmlDeserializer deserializer(file_data);
++    std::string xml_content = deserializer.deserialize();
++
++    // Pretty print
++    std::string pretty_xml = prettyPrintXml(xml_content);
+ 
+     // Write the result back to the same file
+     std::ofstream output_file(file_path);
+@@ -526,7 +553,7 @@
+       throw std::runtime_error("Could not open output file: " + file_path);
+     }
+ 
+-    output_file << output_stream.str();
++    output_file << pretty_xml;
+     output_file.close();
+   }
+ };
+@@ -538,7 +565,9 @@
+                "successful conversion\n"
+             << "will overwrite the original input file. Input can be '-' to "
+                "use stdin, and\n"
+-            << "output can be '-' to use stdout.\n";
++            << "output can be '-' to use stdout.\n"
++            << "\nThe output XML will be automatically formatted with proper "
++               "indentation.\n";
+ }
+ 
+ int main(int argc, char* argv[]) {
+@@ -599,7 +628,7 @@
+     if (output_path != "-") {
+       std::cout << "Successfully converted "
+                 << (use_stdin ? "stdin" : input_path) << " to " << output_path
+-                << std::endl;
++                << " with pretty formatting" << std::endl;
+     }
+   } catch (const std::exception& e) {
+     std::cerr << "Error: " << e.what() << std::endl;
