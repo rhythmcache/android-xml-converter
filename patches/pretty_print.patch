@@ -2,7 +2,7 @@
  #include <iostream>
  #include <map>
  #include <memory>
-+#include <pugixml.hpp>
++#include "pugixml.hpp"
  #include <sstream>
  #include <stdexcept>
  #include <string>
@@ -240,7 +240,7 @@
    }
  };
  
-@@ -448,60 +454,79 @@
+@@ -448,60 +454,88 @@
   public:
    static void convert(const std::string& input_path,
                        const std::string& output_path) {
@@ -282,8 +282,8 @@
 +      xml_content = deserializer.deserialize();
 +    }
 +
-+    // Pretty print
-+    std::string pretty_xml = prettyPrintXml(xml_content);
++    // Pretty print with preservation
++    std::string pretty_xml = prettyPrintXmlPreserving(xml_content);
 +
 +    // Write output
 +    if (output_path == "-") {
@@ -303,8 +303,8 @@
 +    BinaryXmlDeserializer deserializer(std::cin);
 +    std::string xml_content = deserializer.deserialize();
 +
-+    // Pretty print
-+    std::string pretty_xml = prettyPrintXml(xml_content);
++    // Pretty print with preservation
++    std::string pretty_xml = prettyPrintXmlPreserving(xml_content);
  
      if (output_path == "-") {
 -      output = &std::cout;
@@ -324,9 +324,15 @@
    }
  
   private:
-+  static std::string prettyPrintXml(const std::string& xml_content) {
++  static std::string prettyPrintXmlPreserving(const std::string& xml_content) {
 +    pugi::xml_document doc;
-+    pugi::xml_parse_result result = doc.load_string(xml_content.c_str());
++    
++
++    pugi::xml_parse_result result = doc.load_string(
++        xml_content.c_str(), 
++        pugi::parse_default | pugi::parse_comments | pugi::parse_pi | 
++        pugi::parse_declaration | pugi::parse_doctype | pugi::parse_cdata
++    );
 +
 +    if (!result) {
 +      std::cerr << "Warning: Failed to parse XML for pretty printing: "
@@ -336,7 +342,10 @@
 +    }
 +
 +    std::ostringstream output;
-+    doc.save(output, "  ", pugi::format_default | pugi::format_indent);
++    
++    // Save with proper formatting flags
++    doc.save(output, "  ", pugi::format_indent);
++    
 +    return output.str();
 +  }
 +
@@ -345,7 +354,7 @@
      std::ifstream input_file(file_path, std::ios::binary);
      if (!input_file) {
        throw std::runtime_error("Could not open input file: " + file_path);
-@@ -515,10 +540,12 @@
+@@ -515,18 +549,20 @@
      input_file.read(file_data.data(), file_data.size());
      input_file.close();
  
@@ -357,12 +366,13 @@
 +    BinaryXmlDeserializer deserializer(file_data);
 +    std::string xml_content = deserializer.deserialize();
 +
-+    // Pretty print
-+    std::string pretty_xml = prettyPrintXml(xml_content);
++
++    std::string pretty_xml = prettyPrintXmlPreserving(xml_content);
++
  
-     // Write the result back to the same file
+-    // Write the result back to the same file
      std::ofstream output_file(file_path);
-@@ -526,7 +553,7 @@
+     if (!output_file) {
        throw std::runtime_error("Could not open output file: " + file_path);
      }
  
@@ -371,23 +381,35 @@
      output_file.close();
    }
  };
-@@ -538,7 +565,9 @@
+@@ -538,7 +574,9 @@
                 "successful conversion\n"
              << "will overwrite the original input file. Input can be '-' to "
                 "use stdin, and\n"
 -            << "output can be '-' to use stdout.\n";
 +            << "output can be '-' to use stdout.\n"
 +            << "\nThe output XML will be automatically formatted with proper "
-+               "indentation.\n";
++               "indentation\n";
  }
  
  int main(int argc, char* argv[]) {
-@@ -599,7 +628,7 @@
-     if (output_path != "-") {
-       std::cout << "Successfully converted "
-                 << (use_stdin ? "stdin" : input_path) << " to " << output_path
--                << std::endl;
-+                << " with pretty formatting" << std::endl;
+@@ -597,14 +635,14 @@
+       AbxToXmlConverter::convert(input_path, output_path);
      }
+     if (output_path != "-") {
+-      std::cout << "Successfully converted "
+-                << (use_stdin ? "stdin" : input_path) << " to " << output_path
+-                << std::endl;
+-    }
++    std::cout << "Successfully converted "
++              << (use_stdin ? "stdin" : input_path)
++              << " to " << output_path << std::endl;
++}
    } catch (const std::exception& e) {
      std::cerr << "Error: " << e.what() << std::endl;
+     return 1;
+   }
+ 
+   return 0;
+-}
++}
+\ No newline at end of file
