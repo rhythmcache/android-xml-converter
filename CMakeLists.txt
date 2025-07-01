@@ -16,7 +16,7 @@ find_package(PkgConfig)
 pkg_check_modules(PUGIXML QUIET pugixml)
 
 if(NOT PUGIXML_FOUND)
-    message(STATUS "pugixml not found on, fetching from GitHub...")
+    message(STATUS "pugixml not found on system, fetching from GitHub...")
     FetchContent_Declare(
         pugixml
         GIT_REPOSITORY https://github.com/zeux/pugixml.git
