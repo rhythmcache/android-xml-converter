@@ -10,7 +10,10 @@ This is just an experimental code to convert between android xml formats (abx an
 
 ## Build
  
- - Just clone the repo and run CMake:
+ - Clone the Branch.
+```bash
+git clone --branch refactor https://github.com/rhythmcache/android-xml-converter
+```
 
 ```bash
 cmake .
