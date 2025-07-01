@@ -12,16 +12,16 @@ This is just an experimental code to convert between android xml formats (abx an
  
  - Clone the Branch.
 ```bash
-git clone --branch refactor https://github.com/rhythmcache/android-xml-converter
+git clone --branch refactor https://github.com/rhythmcache/android-xml-converter && cd android-xml-converter && mkdir build && cd build
 ```
 
 ```bash
-cmake .
+cmake ..
 make
 ```
 - To enable pretty-printing in abx2xml (automatically re-indents XML output):
 ```bash
-cmake . -DPRETTY_PRINT=ON
+cmake .. -DPRETTY_PRINT=ON
 make
 ```
 
