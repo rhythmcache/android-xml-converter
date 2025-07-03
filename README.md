@@ -33,7 +33,7 @@ make
 
 - `abx2xml [-i] input [output]`
 
-- `xml2abx [-i] input [output]`
+- `xml2abx [-i] [--collapse-whitespaces] input [output]`
 
 
 ### Sources
