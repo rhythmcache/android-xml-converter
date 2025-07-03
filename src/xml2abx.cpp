@@ -383,7 +383,7 @@ class XmlToAbxConverter {
     });
   }
 
-  // Helper function to check if a string is only whitespace
+  // function to check if a string is only whitespace
   static bool is_whitespace_only(const std::string& str) {
     return std::all_of(str.begin(), str.end(), [](char c) {
       return std::isspace(static_cast<unsigned char>(c));
@@ -391,7 +391,7 @@ class XmlToAbxConverter {
   }
 
   static void process_node(BinaryXmlSerializer& serializer,
-                           const pugi::xml_node& node) {
+                           const pugi::xml_node& node, bool collapse_whitespaces) {
     pugi::xml_node_type node_type = node.type();
 
     switch (node_type) {
@@ -482,7 +482,7 @@ class XmlToAbxConverter {
         }
 
         for (const auto& child : node.children()) {
-          process_node(serializer, child);
+          process_node(serializer, child, collapse_whitespaces);
         }
 
         serializer.endTag(name);
@@ -492,7 +492,10 @@ class XmlToAbxConverter {
       case pugi::node_pcdata: {
         std::string text_content = node.value();
         if (is_whitespace_only(text_content)) {
-          serializer.ignorableWhitespace(text_content);
+          // Only write whitespace if not collapsing whitespaces
+          if (!collapse_whitespaces) {
+            serializer.ignorableWhitespace(text_content);
+          }
         } else {
           serializer.text(text_content);
         }
@@ -525,7 +528,7 @@ class XmlToAbxConverter {
 
  public:
   static void convert(const std::string& input_path,
-                      const std::string& output_path) {
+                      const std::string& output_path, bool collapse_whitespaces = false) {
     pugi::xml_document doc;
     pugi::xml_parse_result result;
 
@@ -568,7 +571,7 @@ class XmlToAbxConverter {
       serializer.startDocument();
 
       for (const auto& child : doc.children()) {
-        process_node(serializer, child);
+        process_node(serializer, child, collapse_whitespaces);
       }
 
       serializer.endDocument();
@@ -582,7 +585,7 @@ class XmlToAbxConverter {
       serializer.startDocument();
 
       for (const auto& child : doc.children()) {
-        process_node(serializer, child);
+        process_node(serializer, child, collapse_whitespaces);
       }
 
       serializer.endDocument();
@@ -591,13 +594,16 @@ class XmlToAbxConverter {
 };
 
 void print_usage() {
-  std::cerr << "usage: xml2abx [-i] input [output]\n\n"
+  std::cerr << "usage: xml2abx [-i] [--collapse-whitespaces] input [output]\n\n"
             << "Converts between human-readable XML and Android Binary XML.\n\n"
             << "When invoked with the '-i' argument, the output of a "
                "successful conversion\n"
             << "will overwrite the original input file. Input can be '-' to "
                "use stdin, and\n"
-            << "output can be '-' to use stdout.\n";
+            << "output can be '-' to use stdout.\n\n"
+            << "Options:\n"
+            << "  -i                     Overwrite input file with output\n"
+            << "  --collapse-whitespaces Skip whitespace-only text nodes\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -609,11 +615,14 @@ int main(int argc, char* argv[]) {
   std::string input_path;
   std::string output_path;
   bool overwrite_input = false;
+  bool collapse_whitespaces = false;
 
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if (arg == "-i") {
       overwrite_input = true;
+    } else if (arg == "--collapse-whitespaces") {
+      collapse_whitespaces = true;
     } else if (input_path.empty()) {
       input_path = arg;
     } else if (output_path.empty()) {
@@ -647,7 +656,7 @@ int main(int argc, char* argv[]) {
   }
 
   try {
-    XmlToAbxConverter::convert(input_path, output_path);
+    XmlToAbxConverter::convert(input_path, output_path, collapse_whitespaces);
     std::cout << "Successfully converted "
               << (input_path == "-" ? "stdin" : input_path) << " to "
               << output_path << std::endl;
