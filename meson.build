@@ -19,9 +19,16 @@ if not pugixml_dep.found()
   endif
 endif
 
-libabx_sources = files('src/abx.cc')
-libabx_headers = files('src/abx.hh')
+# Library sources - includes both C++ and C wrapper
+libabx_sources = files(
+  'src/abx.cc',
+  'src/abx_c.cc'
+)
 
+libabx_headers = files('src/abx.hpp')
+libabx_c_headers = files('src/abx.h')
+
+# Build library with both C++ and C API
 libabx = library('abx',
   libabx_sources,
   dependencies: pugixml_dep,
@@ -35,9 +42,11 @@ libabx_dep = declare_dependency(
   dependencies: pugixml_dep
 )
 
+# Install both C++ and C headers
 install_headers(libabx_headers, subdir: 'libabx')
+install_headers(libabx_c_headers, subdir: 'libabx')
 
-
+# CLI tools
 abx2xml = executable('abx2xml',
   'src/cli/abx2xml.cc',
   dependencies: libabx_dep,
@@ -52,7 +61,7 @@ xml2abx = executable('xml2abx',
 
 pkg = import('pkgconfig')
 pkg.generate(libabx,
-  description: 'Android Binary XML converter library',
+  description: 'Android Binary XML converter library with C and C++ API',
   name: 'libabx',
   filebase: 'libabx'
 )
