@@ -35,20 +35,22 @@ std::string base64_encode(const unsigned char* data, size_t len) {
 std::vector<uint8_t> base64_decode(const std::string& data) {
     const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::vector<uint8_t> result;
-    int val = 0, valb = -8;
+    uint32_t val = 0;
+    int valb = -8;
     for (char c : data) {
         if (c == '=') break;
         auto pos = chars.find(c);
         if (pos == std::string::npos) continue;
-        val = (val << 6) + pos;
+        val = (val << 6) + static_cast<uint32_t>(pos);
         valb += 6;
         if (valb >= 0) {
-            result.push_back((val >> valb) & 0xFF);
+            result.push_back(static_cast<uint8_t>((val >> valb) & 0xFF));
             valb -= 8;
         }
     }
     return result;
 }
+
 
 std::vector<uint8_t> hex_decode(const std::string& hex) {
     if (hex.length() % 2 != 0) {
