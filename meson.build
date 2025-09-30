@@ -22,7 +22,7 @@ endif
 libabx_sources = files('src/abx.cc')
 libabx_headers = files('src/abx.hh')
 
-libabx = static_library('abx',
+libabx = library('abx',
   libabx_sources,
   dependencies: pugixml_dep,
   include_directories: include_directories('src'),
