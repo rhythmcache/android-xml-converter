@@ -11,10 +11,14 @@ if not pugixml_dep.found()
   fs = import('fs')
   if not fs.is_dir('subprojects/pugixml')
     message('Downloading pugixml...')
-    pugixml_proj = subproject('pugixml', default_options: ['tests=false'])
+    pugixml_proj = subproject('pugixml',
+      default_options: ['tests=false', 'default_library=static']
+    )
     pugixml_dep = pugixml_proj.get_variable('pugixml_dep')
   else
-    pugixml_proj = subproject('pugixml', default_options: ['tests=false'])
+    pugixml_proj = subproject('pugixml',
+      default_options: ['tests=false', 'default_library=static']
+    )
     pugixml_dep = pugixml_proj.get_variable('pugixml_dep')
   endif
 endif
@@ -29,7 +33,7 @@ libabx_headers = files('src/abx.hpp')
 libabx_c_headers = files('src/abx.h')
 
 # Build library with both C++ and C API
-libabx = library('abx',
+libabx = static_library('abx',
   libabx_sources,
   dependencies: pugixml_dep,
   include_directories: include_directories('src'),
