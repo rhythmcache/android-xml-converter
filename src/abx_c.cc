@@ -6,6 +6,7 @@
 #include <sstream>
 #include <memory>
 #include <vector>
+#include <iomanip>
 
 
 thread_local std::string g_last_error;
