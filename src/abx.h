@@ -52,6 +52,11 @@ abx_serializer_t* abx_serializer_create_file(const char* filepath, abx_error_t* 
 // The buffer will be automatically managed and can be retrieved with abx_serializer_get_buffer
 abx_serializer_t* abx_serializer_create_buffer(abx_error_t* error);
 
+// Reset deserializer to beginning (allows re-reading)
+// For file-based deserializers, reopens the file
+// For buffer-based deserializers, resets position to start
+abx_error_t abx_deserializer_reset(abx_deserializer_t* deserializer);
+
 // Start the XML document
 abx_error_t abx_serializer_start_document(abx_serializer_t* serializer);
 
