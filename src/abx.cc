@@ -105,14 +105,7 @@ std::string encode_xml_entities(const std::string &text) {
 // ============================================================================
 
 FastDataInput::FastDataInput(std::istream &is)
-    : input_stream(std::ios::binary) {
-  std::ostringstream buffer;
-  buffer << is.rdbuf();
-  input_stream.str(buffer.str());
-}
-
-FastDataInput::FastDataInput(const std::vector<char> &data)
-    : input_stream(std::string(data.begin(), data.end()), std::ios::binary) {}
+    : input_stream(is) {}
 
 uint8_t FastDataInput::readByte() {
   uint8_t value;
@@ -198,7 +191,9 @@ std::vector<uint8_t> FastDataInput::readBytes(uint16_t length) {
   return data;
 }
 
-bool FastDataInput::eof() const { return input_stream.eof(); }
+bool FastDataInput::eof() const { 
+  return input_stream.eof() || input_stream.peek() == EOF; 
+}
 
 std::streampos FastDataInput::tellg() { return input_stream.tellg(); }
 
@@ -349,21 +344,6 @@ void BinaryXmlDeserializer::processAttribute(uint8_t token) {
 BinaryXmlDeserializer::BinaryXmlDeserializer(std::istream &is, std::ostream &os)
     : mOut(os) {
   mIn = std::make_unique<FastDataInput>(is);
-
-  uint8_t magic[4];
-  for (int i = 0; i < 4; ++i) {
-    magic[i] = mIn->readByte();
-  }
-
-  if (memcmp(magic, PROTOCOL_MAGIC_VERSION_0, 4) != 0) {
-    throw std::runtime_error("Invalid ABX file format - magic header mismatch");
-  }
-}
-
-BinaryXmlDeserializer::BinaryXmlDeserializer(const std::vector<char> &data,
-                                             std::ostream &os)
-    : mOut(os) {
-  mIn = std::make_unique<FastDataInput>(data);
 
   uint8_t magic[4];
   for (int i = 0; i < 4; ++i) {

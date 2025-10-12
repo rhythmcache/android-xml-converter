@@ -483,7 +483,8 @@ extern "C" abx_error_t abx_deserializer_to_file(abx_deserializer_t* deserializer
             return set_error(ABX_ERROR_WRITE_FAILED, "Failed to open output file");
         }
 
-        libabx::BinaryXmlDeserializer deser(deserializer->data, out);
+        std::istringstream in(std::string(deserializer->data.begin(), deserializer->data.end()), std::ios::binary);
+        libabx::BinaryXmlDeserializer deser(in, out);
         deser.deserialize();
 
         return ABX_OK;
@@ -501,7 +502,8 @@ extern "C" size_t abx_deserializer_to_string(abx_deserializer_t* deserializer, c
     try {
         clear_error();
         std::ostringstream out;
-        libabx::BinaryXmlDeserializer deser(deserializer->data, out);
+        std::istringstream in(std::string(deserializer->data.begin(), deserializer->data.end()), std::ios::binary);
+        libabx::BinaryXmlDeserializer deser(in, out);
         deser.deserialize();
 
         std::string result = out.str();
@@ -664,13 +666,14 @@ extern "C" abx_error_t abx_convert_abx_buffer_to_xml_file(const uint8_t* abx_dat
 
     try {
         clear_error();
-        std::vector<char> data(reinterpret_cast<const char*>(abx_data), reinterpret_cast<const char*>(abx_data) + length);
+        std::string data_str(reinterpret_cast<const char*>(abx_data), length);
+        std::istringstream in(data_str, std::ios::binary);
         std::ofstream out(xml_path);
         if (!out) {
             return set_error(ABX_ERROR_WRITE_FAILED, "Failed to open output file");
         }
 
-        libabx::BinaryXmlDeserializer deser(data, out);
+        libabx::BinaryXmlDeserializer deser(in, out);
         deser.deserialize();
         return ABX_OK;
     } catch (const std::exception& e) {
@@ -715,10 +718,11 @@ extern "C" size_t abx_convert_abx_buffer_to_string(const uint8_t* abx_data, size
 
     try {
         clear_error();
-        std::vector<char> data(reinterpret_cast<const char*>(abx_data), reinterpret_cast<const char*>(abx_data) + length);
+        std::string data_str(reinterpret_cast<const char*>(abx_data), length);
+        std::istringstream in(data_str, std::ios::binary);
         std::ostringstream out;
 
-        libabx::BinaryXmlDeserializer deser(data, out);
+        libabx::BinaryXmlDeserializer deser(in, out);
         deser.deserialize();
 
         std::string result = out.str();

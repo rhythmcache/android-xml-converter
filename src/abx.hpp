@@ -32,12 +32,11 @@ std::string encode_xml_entities(const std::string& text);
 
 class FastDataInput {
    private:
-    std::istringstream input_stream;
+    std::istream& input_stream;
     std::vector<std::string> interned_strings;
 
    public:
     explicit FastDataInput(std::istream& is);
-    explicit FastDataInput(const std::vector<char>& data);
 
     uint8_t readByte();
     uint16_t readShort();
@@ -181,7 +180,6 @@ class BinaryXmlDeserializer {
 
    public:
     BinaryXmlDeserializer(std::istream& is, std::ostream& os);
-    BinaryXmlDeserializer(const std::vector<char>& data, std::ostream& os);
 
     void deserialize();
 };
