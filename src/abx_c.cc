@@ -113,7 +113,7 @@ extern "C" abx_serializer_t* abx_serializer_create_buffer(abx_error_t* error) {
         clear_error();
         auto serializer = new abx_serializer;
         serializer->buffer_stream = std::make_unique<std::ostringstream>(std::ios::binary);
-        serializer->stream = std::unique_ptr<std::ostream>(serializer->buffer_stream.get());
+        serializer->stream = nullptr;
         serializer->serializer = std::make_unique<libabx::BinaryXmlSerializer>(*serializer->buffer_stream);
         
         if (error) *error = ABX_OK;
