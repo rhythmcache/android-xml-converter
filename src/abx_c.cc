@@ -40,9 +40,9 @@ struct abx_serializer {
 };
 
 struct abx_deserializer {
-    std::unique_ptr<std::istream> stream;
-    std::unique_ptr<std::istringstream> buffer_stream;
-    std::vector<char> data;
+    std::unique_ptr<std::ifstream> file_stream;  // For file-based deserialization
+    std::vector<char> buffer_data;                // Only for buffer-based deserialization
+    bool is_file;                                 // Track which type we have
 };
 
 // ============================================================================
@@ -83,6 +83,30 @@ extern "C" abx_serializer_t* abx_serializer_create_file(const char* filepath, ab
         return nullptr;
     }
 }
+
+extern "C" abx_error_t abx_deserializer_reset(abx_deserializer_t* deserializer) {
+    if (!deserializer) {
+        return set_error(ABX_ERROR_INVALID_HANDLE, "Invalid deserializer handle");
+    }
+
+    try {
+        clear_error();
+        
+        if (deserializer->is_file) {
+            deserializer->file_stream->clear();  // clear eof and error flags
+            deserializer->file_stream->seekg(0, std::ios::beg);  // seek to start
+            if (!*deserializer->file_stream) {
+                return set_error(ABX_ERROR_INVALID_FORMAT, "Failed to reset file stream");
+            }
+        }
+        // buffer-based deserializers are automatically reusable (data is in memory)
+        
+        return ABX_OK;
+    } catch (const std::exception& e) {
+        return handle_exception(e);
+    }
+}
+
 
 extern "C" abx_serializer_t* abx_serializer_create_buffer(abx_error_t* error) {
     try {
@@ -425,21 +449,15 @@ extern "C" abx_deserializer_t* abx_deserializer_create_file(const char* filepath
     try {
         clear_error();
         auto deserializer = new abx_deserializer;
+        deserializer->is_file = true;
         
-        // Read file into memory
-        std::ifstream file(filepath, std::ios::binary);
-        if (!file) {
+        // Open file stream (don't buffer it)
+        deserializer->file_stream = std::make_unique<std::ifstream>(filepath, std::ios::binary);
+        if (!deserializer->file_stream || !deserializer->file_stream->good()) {
             delete deserializer;
             if (error) *error = set_error(ABX_ERROR_FILE_NOT_FOUND, "Failed to open file for reading");
             return nullptr;
         }
-
-        file.seekg(0, std::ios::end);
-        size_t size = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        deserializer->data.resize(size);
-        file.read(deserializer->data.data(), size);
 
         if (error) *error = ABX_OK;
         return deserializer;
@@ -458,7 +476,8 @@ extern "C" abx_deserializer_t* abx_deserializer_create_buffer(const uint8_t* dat
     try {
         clear_error();
         auto deserializer = new abx_deserializer;
-        deserializer->data.assign(reinterpret_cast<const char*>(data), reinterpret_cast<const char*>(data) + length);
+        deserializer->is_file = false;
+        deserializer->buffer_data.assign(reinterpret_cast<const char*>(data), reinterpret_cast<const char*>(data) + length);
         
         if (error) *error = ABX_OK;
         return deserializer;
@@ -478,14 +497,27 @@ extern "C" abx_error_t abx_deserializer_to_file(abx_deserializer_t* deserializer
 
     try {
         clear_error();
+        
+        // Reset before reading to handle re-reads
+        if (abx_deserializer_reset(deserializer) != ABX_OK) {
+            return ABX_ERROR_INVALID_FORMAT;
+        }
+
         std::ofstream out(output_path);
         if (!out) {
             return set_error(ABX_ERROR_WRITE_FAILED, "Failed to open output file");
         }
 
-        std::istringstream in(std::string(deserializer->data.begin(), deserializer->data.end()), std::ios::binary);
-        libabx::BinaryXmlDeserializer deser(in, out);
-        deser.deserialize();
+        if (deserializer->is_file) {
+            libabx::BinaryXmlDeserializer deser(*deserializer->file_stream, out);
+            deser.deserialize();
+        } else {
+            std::istringstream in(std::string(deserializer->buffer_data.begin(), 
+                                              deserializer->buffer_data.end()), 
+                                  std::ios::binary);
+            libabx::BinaryXmlDeserializer deser(in, out);
+            deser.deserialize();
+        }
 
         return ABX_OK;
     } catch (const std::exception& e) {
@@ -501,13 +533,27 @@ extern "C" size_t abx_deserializer_to_string(abx_deserializer_t* deserializer, c
 
     try {
         clear_error();
+        
+        // Reset before reading to handle re-reads
+        if (abx_deserializer_reset(deserializer) != ABX_OK) {
+            return 0;
+        }
+
         std::ostringstream out;
-        std::istringstream in(std::string(deserializer->data.begin(), deserializer->data.end()), std::ios::binary);
-        libabx::BinaryXmlDeserializer deser(in, out);
-        deser.deserialize();
+
+        if (deserializer->is_file) {
+            libabx::BinaryXmlDeserializer deser(*deserializer->file_stream, out);
+            deser.deserialize();
+        } else {
+            std::istringstream in(std::string(deserializer->buffer_data.begin(), 
+                                              deserializer->buffer_data.end()), 
+                                  std::ios::binary);
+            libabx::BinaryXmlDeserializer deser(in, out);
+            deser.deserialize();
+        }
 
         std::string result = out.str();
-        size_t needed = result.size() + 1; // +1 for null terminator
+        size_t needed = result.size() + 1;
 
         if (out_buffer && buffer_size >= needed) {
             std::memcpy(out_buffer, result.c_str(), needed);
