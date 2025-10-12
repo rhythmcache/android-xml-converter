@@ -1,0 +1,22 @@
+[package]
+name = "android-xml-converter"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "android_xml_converter"
+path = "src/abx.rs"
+
+[[bin]]
+name = "abx2xml"
+path = "src/cli/abx2xml.rs"
+
+[[bin]]
+name = "xml2abx"
+path = "src/cli/xml2abx.rs"
+
+[dependencies]
+
+[build-dependencies]
+cc = "1.0"
+pkg-config = "0.3"
