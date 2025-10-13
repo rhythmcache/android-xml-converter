@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -40,9 +41,11 @@ std::vector<uint8_t> base64_decode(const std::string &data) {
   uint32_t val = 0;
   int valb = -8;
   for (char c : data) {
-    if (c == '=') break;
+    if (c == '=')
+      break;
     auto pos = chars.find(c);
-    if (pos == std::string::npos) continue;
+    if (pos == std::string::npos)
+      continue;
     val = (val << 6) + static_cast<uint32_t>(pos);
     valb += 6;
     if (valb >= 0) {
@@ -76,24 +79,24 @@ std::string encode_xml_entities(const std::string &text) {
 
   for (char c : text) {
     switch (c) {
-      case '&':
-        result += "&amp;";
-        break;
-      case '<':
-        result += "&lt;";
-        break;
-      case '>':
-        result += "&gt;";
-        break;
-      case '"':
-        result += "&quot;";
-        break;
-      case '\'':
-        result += "&apos;";
-        break;
-      default:
-        result += c;
-        break;
+    case '&':
+      result += "&amp;";
+      break;
+    case '<':
+      result += "&lt;";
+      break;
+    case '>':
+      result += "&gt;";
+      break;
+    case '"':
+      result += "&quot;";
+      break;
+    case '\'':
+      result += "&apos;";
+      break;
+    default:
+      result += c;
+      break;
     }
   }
 
@@ -104,8 +107,7 @@ std::string encode_xml_entities(const std::string &text) {
 // STREAM WRAPPERS
 // ============================================================================
 
-FastDataInput::FastDataInput(std::istream &is)
-    : input_stream(is) {}
+FastDataInput::FastDataInput(std::istream &is) : input_stream(is) {}
 
 uint8_t FastDataInput::readByte() {
   uint8_t value;
@@ -191,8 +193,8 @@ std::vector<uint8_t> FastDataInput::readBytes(uint16_t length) {
   return data;
 }
 
-bool FastDataInput::eof() const { 
-  return input_stream.eof() || input_stream.peek() == EOF; 
+bool FastDataInput::eof() const {
+  return input_stream.eof() || input_stream.peek() == EOF;
 }
 
 std::streampos FastDataInput::tellg() { return input_stream.tellg(); }
@@ -274,10 +276,10 @@ void FastDataOutput::flush() { output_stream.flush(); }
 const uint8_t BinaryXmlDeserializer::PROTOCOL_MAGIC_VERSION_0[4] = {0x41, 0x42,
                                                                     0x58, 0x00};
 
-std::string BinaryXmlDeserializer::bytesToHex(
-    const std::vector<uint8_t> &bytes) {
+std::string
+BinaryXmlDeserializer::bytesToHex(const std::vector<uint8_t> &bytes) {
   std::stringstream ss;
-  ss << std::hex << std::uppercase;
+  ss << std::hex << std::nouppercase;
   for (uint8_t byte : bytes) {
     ss << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
   }
@@ -291,51 +293,76 @@ void BinaryXmlDeserializer::processAttribute(uint8_t token) {
   mOut << " " << name << "=\"";
 
   switch (type) {
-    case TYPE_STRING:
-      mOut << encode_xml_entities(mIn->readUTF());
-      break;
-    case TYPE_STRING_INTERNED:
-      mOut << encode_xml_entities(mIn->readInternedUTF());
-      break;
-    case TYPE_INT:
-      mOut << mIn->readInt();
-      break;
-    case TYPE_INT_HEX:
-      mOut << "0x" << std::hex << mIn->readInt() << std::dec;
-      break;
-    case TYPE_LONG:
-      mOut << mIn->readLong();
-      break;
-    case TYPE_LONG_HEX:
-      mOut << "0x" << std::hex << mIn->readLong() << std::dec;
-      break;
-    case TYPE_FLOAT:
-      mOut << mIn->readFloat();
-      break;
-    case TYPE_DOUBLE:
-      mOut << mIn->readDouble();
-      break;
-    case TYPE_BOOLEAN_TRUE:
-      mOut << "true";
-      break;
-    case TYPE_BOOLEAN_FALSE:
-      mOut << "false";
-      break;
-    case TYPE_BYTES_HEX: {
-      uint16_t length = mIn->readShort();
-      std::vector<uint8_t> bytes = mIn->readBytes(length);
-      mOut << bytesToHex(bytes);
-      break;
+  case TYPE_STRING:
+    mOut << encode_xml_entities(mIn->readUTF());
+    break;
+  case TYPE_STRING_INTERNED:
+    mOut << encode_xml_entities(mIn->readInternedUTF());
+    break;
+  case TYPE_INT:
+    mOut << mIn->readInt();
+    break;
+  case TYPE_INT_HEX: {
+    int32_t value = mIn->readInt();
+    if (value == -1) {
+      mOut << value;
+    } else {
+      mOut << std::hex << std::nouppercase << static_cast<uint32_t>(value)
+           << std::dec;
     }
-    case TYPE_BYTES_BASE64: {
-      uint16_t length = mIn->readShort();
-      std::vector<uint8_t> bytes = mIn->readBytes(length);
-      mOut << base64_encode(bytes.data(), bytes.size());
-      break;
+    break;
+  }
+  case TYPE_LONG:
+    mOut << mIn->readLong();
+    break;
+  case TYPE_LONG_HEX: {
+    int64_t value = mIn->readLong();
+    if (value == -1LL) {
+      mOut << value;
+    } else {
+      mOut << std::hex << std::nouppercase << static_cast<uint64_t>(value)
+           << std::dec;
     }
-    default:
-      throw std::runtime_error("Unknown attribute type: " +
-                               std::to_string(type));
+    break;
+  }
+  case TYPE_FLOAT: {
+    float value = mIn->readFloat();
+    if (value == std::floor(value) && std::isfinite(value)) {
+      mOut << static_cast<int>(value) << ".0";
+    } else {
+      mOut << value;
+    }
+    break;
+  }
+  case TYPE_DOUBLE: {
+    double value = mIn->readDouble();
+    if (value == std::floor(value) && std::isfinite(value)) {
+      mOut << static_cast<long long>(value) << ".0";
+    } else {
+      mOut << value;
+    }
+    break;
+  }
+  case TYPE_BOOLEAN_TRUE:
+    mOut << "true";
+    break;
+  case TYPE_BOOLEAN_FALSE:
+    mOut << "false";
+    break;
+  case TYPE_BYTES_HEX: {
+    uint16_t length = mIn->readShort();
+    std::vector<uint8_t> bytes = mIn->readBytes(length);
+    mOut << bytesToHex(bytes);
+    break;
+  }
+  case TYPE_BYTES_BASE64: {
+    uint16_t length = mIn->readShort();
+    std::vector<uint8_t> bytes = mIn->readBytes(length);
+    mOut << base64_encode(bytes.data(), bytes.size());
+    break;
+  }
+  default:
+    throw std::runtime_error("Unknown attribute type: " + std::to_string(type));
   }
 
   mOut << "\"";
@@ -363,89 +390,89 @@ void BinaryXmlDeserializer::deserialize() {
       uint8_t type = token & 0xF0;
 
       switch (command) {
-        case START_DOCUMENT:
-          break;
+      case START_DOCUMENT:
+        break;
 
-        case END_DOCUMENT:
-          return;
+      case END_DOCUMENT:
+        return;
 
-        case START_TAG: {
-          std::string tagName = mIn->readInternedUTF();
-          mOut << "<" << tagName;
+      case START_TAG: {
+        std::string tagName = mIn->readInternedUTF();
+        mOut << "<" << tagName;
 
-          while (true) {
-            std::streampos pos = mIn->tellg();
-            try {
-              uint8_t nextToken = mIn->readByte();
-              if ((nextToken & 0x0F) == ATTRIBUTE) {
-                processAttribute(nextToken);
-              } else {
-                mIn->seekg(pos);
-                break;
-              }
-            } catch (const std::runtime_error &) {
+        while (true) {
+          std::streampos pos = mIn->tellg();
+          try {
+            uint8_t nextToken = mIn->readByte();
+            if ((nextToken & 0x0F) == ATTRIBUTE) {
+              processAttribute(nextToken);
+            } else {
               mIn->seekg(pos);
               break;
             }
+          } catch (const std::runtime_error &) {
+            mIn->seekg(pos);
+            break;
           }
-
-          mOut << ">";
-          break;
         }
 
-        case END_TAG: {
-          std::string tagName = mIn->readInternedUTF();
-          mOut << "</" << tagName << ">";
-          break;
+        mOut << ">";
+        break;
+      }
+
+      case END_TAG: {
+        std::string tagName = mIn->readInternedUTF();
+        mOut << "</" << tagName << ">";
+        break;
+      }
+
+      case TEXT:
+        if (type == TYPE_STRING) {
+          std::string text = mIn->readUTF();
+          if (!text.empty()) {
+            mOut << encode_xml_entities(text);
+          }
         }
+        break;
 
-        case TEXT:
-          if (type == TYPE_STRING) {
-            std::string text = mIn->readUTF();
-            if (!text.empty()) {
-              mOut << encode_xml_entities(text);
-            }
-          }
-          break;
+      case CDSECT:
+        if (type == TYPE_STRING) {
+          mOut << "<![CDATA[" << mIn->readUTF() << "]]>";
+        }
+        break;
 
-        case CDSECT:
-          if (type == TYPE_STRING) {
-            mOut << "<![CDATA[" << mIn->readUTF() << "]]>";
-          }
-          break;
+      case COMMENT:
+        if (type == TYPE_STRING) {
+          mOut << "<!--" << mIn->readUTF() << "-->";
+        }
+        break;
 
-        case COMMENT:
-          if (type == TYPE_STRING) {
-            mOut << "<!--" << mIn->readUTF() << "-->";
-          }
-          break;
+      case PROCESSING_INSTRUCTION:
+        if (type == TYPE_STRING) {
+          mOut << "<?" << mIn->readUTF() << "?>";
+        }
+        break;
 
-        case PROCESSING_INSTRUCTION:
-          if (type == TYPE_STRING) {
-            mOut << "<?" << mIn->readUTF() << "?>";
-          }
-          break;
+      case DOCDECL:
+        if (type == TYPE_STRING) {
+          mOut << "<!DOCTYPE " << mIn->readUTF() << ">";
+        }
+        break;
 
-        case DOCDECL:
-          if (type == TYPE_STRING) {
-            mOut << "<!DOCTYPE " << mIn->readUTF() << ">";
-          }
-          break;
+      case ENTITY_REF:
+        if (type == TYPE_STRING) {
+          mOut << "&" << mIn->readUTF() << ";";
+        }
+        break;
 
-        case ENTITY_REF:
-          if (type == TYPE_STRING) {
-            mOut << "&" << mIn->readUTF() << ";";
-          }
-          break;
+      case IGNORABLE_WHITESPACE:
+        if (type == TYPE_STRING) {
+          mOut << mIn->readUTF();
+        }
+        break;
 
-        case IGNORABLE_WHITESPACE:
-          if (type == TYPE_STRING) {
-            mOut << mIn->readUTF();
-          }
-          break;
-
-        default:
-          break;
+      default:
+        break;
       }
     } catch (const std::runtime_error &) {
       if (mIn->eof()) {
@@ -643,14 +670,17 @@ void BinaryXmlSerializer::entityRef(const std::string &text) {
 namespace {
 
 bool is_numeric(const std::string &str) {
-  if (str.empty()) return false;
+  if (str.empty())
+    return false;
   size_t start = (str[0] == '-') ? 1 : 0;
   return std::all_of(str.begin() + start, str.end(), ::isdigit);
 }
 
 bool is_hex_number(const std::string &str) {
-  if (str.length() < 3) return false;
-  if (str.substr(0, 2) != "0x" && str.substr(0, 2) != "0X") return false;
+  if (str.length() < 3)
+    return false;
+  if (str.substr(0, 2) != "0x" && str.substr(0, 2) != "0X")
+    return false;
   return std::all_of(str.begin() + 2, str.end(), [](char c) {
     return std::isdigit(c) ||
            (std::tolower(c) >= 'a' && std::tolower(c) <= 'f');
@@ -658,12 +688,14 @@ bool is_hex_number(const std::string &str) {
 }
 
 bool is_float(const std::string &str) {
-  if (str.empty()) return false;
+  if (str.empty())
+    return false;
   bool has_dot = false;
   size_t start = (str[0] == '-') ? 1 : 0;
   for (size_t i = start; i < str.length(); ++i) {
     if (str[i] == '.') {
-      if (has_dot) return false;
+      if (has_dot)
+        return false;
       has_dot = true;
     } else if (!::isdigit(str[i])) {
       return false;
@@ -688,19 +720,20 @@ bool is_boolean(const std::string &str) {
 }
 
 bool is_base64(const std::string &str) {
-  if (str.empty() || str.length() % 4 != 0) return false;
+  if (str.empty() || str.length() % 4 != 0)
+    return false;
   return std::all_of(str.begin(), str.end(),
                      [](char c) {
                        return std::isalnum(c) || c == '+' || c == '/' ||
                               c == '=';
                      }) &&
-         str.find_first_not_of(
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstu"
-             "vwxyz0123456789+/=") == std::string::npos;
+         str.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstu"
+                               "vwxyz0123456789+/=") == std::string::npos;
 }
 
 bool is_hex_string(const std::string &str) {
-  if (str.length() % 2 != 0) return false;
+  if (str.length() % 2 != 0)
+    return false;
   return std::all_of(str.begin(), str.end(), [](char c) {
     return std::isdigit(c) ||
            (std::tolower(c) >= 'a' && std::tolower(c) <= 'f');
@@ -719,137 +752,136 @@ void process_xml_node_internal(BinaryXmlSerializer &serializer,
   pugi::xml_node_type node_type = node.type();
 
   switch (node_type) {
-    case pugi::node_element: {
-      std::string name = node.name();
+  case pugi::node_element: {
+    std::string name = node.name();
 
-      if (options.warning_callback && name.find(':') != std::string::npos) {
-        options.warning_callback("Namespaces and prefixes",
-                                 "Found prefixed element: " + name);
+    if (options.warning_callback && name.find(':') != std::string::npos) {
+      options.warning_callback("Namespaces and prefixes",
+                               "Found prefixed element: " + name);
+    }
+
+    serializer.startTag(name);
+
+    for (const auto &attr : node.attributes()) {
+      std::string attr_name = attr.name();
+      std::string attr_value = attr.value();
+
+      if (options.warning_callback &&
+          (attr_name.find("xmlns") == 0 ||
+           attr_name.find(':') != std::string::npos)) {
+        options.warning_callback(
+            "Namespaces and prefixes",
+            "Found namespace declaration or prefixed attribute: " + attr_name);
       }
 
-      serializer.startTag(name);
+      // Type inference for attributes
+      if (is_boolean(attr_value)) {
+        // "true" or "false" only
+        serializer.attributeBoolean(attr_name, attr_value == "true");
 
-      for (const auto &attr : node.attributes()) {
-        std::string attr_name = attr.name();
-        std::string attr_value = attr.value();
-
-        if (options.warning_callback &&
-            (attr_name.find("xmlns") == 0 ||
-             attr_name.find(':') != std::string::npos)) {
-          options.warning_callback(
-              "Namespaces and prefixes",
-              "Found namespace declaration or prefixed attribute: " +
-                  attr_name);
-        }
-
-        // Type inference for attributes
-        if (is_boolean(attr_value)) {
-          // "true" or "false" only
-          serializer.attributeBoolean(attr_name, attr_value == "true");
-
-        } else if (is_hex_number(attr_value)) {
-          // Only 0x prefixed hex like 0xFF
-          try {
-            if (attr_value.length() <= 10) {
-              int32_t int_val = std::stoi(attr_value, nullptr, 16);
-              serializer.attributeIntHex(attr_name, int_val);
-            } else {
-              int64_t long_val = std::stoll(attr_value, nullptr, 16);
-              serializer.attributeLongHex(attr_name, long_val);
-            }
-          } catch (...) {
-            serializer.attribute(attr_name, attr_value);
-          }
-
-        } else if (is_numeric(attr_value) && attr_value.length() < 15) {
-          // simple integers only, reasonable length
-          // excludes things like certificate keys
-          try {
-            int32_t int_val = std::stoi(attr_value);
-            serializer.attributeInt(attr_name, int_val);
-          } catch (...) {
-            try {
-              int64_t long_val = std::stoll(attr_value);
-              serializer.attributeLong(attr_name, long_val);
-            } catch (...) {
-              serializer.attribute(attr_name, attr_value);
-            }
-          }
-
-        } else if (is_float(attr_value) && !is_hex_string(attr_value) &&
-                   attr_value.length() < 20) {
-          // only real floats like 3.14 not hex strings
-          try {
-            float float_val = std::stof(attr_value);
-            serializer.attributeFloat(attr_name, float_val);
-          } catch (...) {
-            serializer.attribute(attr_name, attr_value);
-          }
-
-        } else {
-          // everything else stays as string the safe default
-          // this includes uuids certs long hex strings etc.
-          if (attr_value.length() < 50 &&
-              attr_value.find(' ') == std::string::npos &&
-              attr_value.find('-') == std::string::npos) {
-            // short simple strings can be interned
-            serializer.attributeInterned(attr_name, attr_value);
+      } else if (is_hex_number(attr_value)) {
+        // Only 0x prefixed hex like 0xFF
+        try {
+          if (attr_value.length() <= 10) {
+            int32_t int_val = std::stoi(attr_value, nullptr, 16);
+            serializer.attributeIntHex(attr_name, int_val);
           } else {
-            // everything else as regular string
+            int64_t long_val = std::stoll(attr_value, nullptr, 16);
+            serializer.attributeLongHex(attr_name, long_val);
+          }
+        } catch (...) {
+          serializer.attribute(attr_name, attr_value);
+        }
+
+      } else if (is_numeric(attr_value) && attr_value.length() < 15) {
+        // simple integers only, reasonable length
+        // excludes things like certificate keys
+        try {
+          int32_t int_val = std::stoi(attr_value);
+          serializer.attributeInt(attr_name, int_val);
+        } catch (...) {
+          try {
+            int64_t long_val = std::stoll(attr_value);
+            serializer.attributeLong(attr_name, long_val);
+          } catch (...) {
             serializer.attribute(attr_name, attr_value);
           }
         }
-      }
 
-      for (const auto &child : node.children()) {
-        process_xml_node_internal(serializer, child, options);
-      }
-
-      serializer.endTag(name);
-      break;
-    }
-
-    case pugi::node_pcdata: {
-      std::string text_content = node.value();
-      if (is_whitespace_only(text_content)) {
-        if (!options.collapse_whitespaces) {
-          serializer.ignorableWhitespace(text_content);
+      } else if (is_float(attr_value) && !is_hex_string(attr_value) &&
+                 attr_value.length() < 20) {
+        // only real floats like 3.14 not hex strings
+        try {
+          float float_val = std::stof(attr_value);
+          serializer.attributeFloat(attr_name, float_val);
+        } catch (...) {
+          serializer.attribute(attr_name, attr_value);
         }
+
       } else {
-        serializer.text(text_content);
+        // everything else stays as string the safe default
+        // this includes uuids certs long hex strings etc.
+        if (attr_value.length() < 50 &&
+            attr_value.find(' ') == std::string::npos &&
+            attr_value.find('-') == std::string::npos) {
+          // short simple strings can be interned
+          serializer.attributeInterned(attr_name, attr_value);
+        } else {
+          // everything else as regular string
+          serializer.attribute(attr_name, attr_value);
+        }
       }
-      break;
     }
 
-    case pugi::node_cdata:
-      serializer.cdsect(node.value());
-      break;
-
-    case pugi::node_comment:
-      serializer.comment(node.value());
-      break;
-
-    case pugi::node_pi: {
-      std::string target = node.name();
-      std::string data = node.value();
-      serializer.processingInstruction(target, data);
-      break;
+    for (const auto &child : node.children()) {
+      process_xml_node_internal(serializer, child, options);
     }
 
-    case pugi::node_doctype:
-      serializer.docdecl(node.value());
-      break;
+    serializer.endTag(name);
+    break;
+  }
 
-    case pugi::node_declaration:
-      // skip XML declarations
-      break;
+  case pugi::node_pcdata: {
+    std::string text_content = node.value();
+    if (is_whitespace_only(text_content)) {
+      if (!options.collapse_whitespaces) {
+        serializer.ignorableWhitespace(text_content);
+      }
+    } else {
+      serializer.text(text_content);
+    }
+    break;
+  }
 
-    default:
-      break;
+  case pugi::node_cdata:
+    serializer.cdsect(node.value());
+    break;
+
+  case pugi::node_comment:
+    serializer.comment(node.value());
+    break;
+
+  case pugi::node_pi: {
+    std::string target = node.name();
+    std::string data = node.value();
+    serializer.processingInstruction(target, data);
+    break;
+  }
+
+  case pugi::node_doctype:
+    serializer.docdecl(node.value());
+    break;
+
+  case pugi::node_declaration:
+    // skip XML declarations
+    break;
+
+  default:
+    break;
   }
 }
 
-}  // anonymous namespace
+} // anonymous namespace
 
 // ============================================================================
 // LOW-LEVEL API
@@ -934,4 +966,4 @@ std::string convertAbxToXmlString(std::istream &abx_input) {
   return out.str();
 }
 
-}  // namespace libabx
+} // namespace libabx
