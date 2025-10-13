@@ -35,7 +35,10 @@ The Rust interface wraps the same logic using FFI bindings.
 ```bash
 cargo build --release
 ```
-
+or
+```
+cargo install android-xml-converter
+```
 ---
 
 ## Documentation
