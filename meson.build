@@ -1,7 +1,19 @@
 project('android-xml-converter', 'cpp',
   version: '1.0.0',
-  default_options: ['cpp_std=c++17', 'warning_level=2']
+  default_options: [
+    'cpp_std=c++17',
+    'warning_level=2',
+    'buildtype=release',
+    'optimization=3',
+    'b_ndebug=true',
+    'strip=true',
+    'b_lto=true',
+    'b_pie=true',
+    'b_staticpic=true',
+    'cpp_args=-Wno-unused-function'
+  ]
 )
+
 
 pugixml_dep = dependency('pugixml', required: false)
 
