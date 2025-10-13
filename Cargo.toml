@@ -15,6 +15,7 @@ include = [
     "src/**",
     "README.md",
     "LICENSE",
+    "build.rs",
 ]
 
 [lib]
