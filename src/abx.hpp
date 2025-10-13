@@ -31,7 +31,7 @@
  *   Recommendation: For generating ABX files that Android will consume, use the
  *   BinaryXmlSerializer class directly with explicit type methods.
  *
- * ### XML File to ABX File
+ * @par Convert XML file to ABX file
  * @code
  * #include <fstream>
  * #include "abx.hpp"
@@ -41,20 +41,20 @@
  * abx_file.close();
  * @endcode
  *
- * ### ABX File to XML File
+ *  ABX File to XML File
  * @code
  * std::ifstream abx_file("input.abx", std::ios::binary);
  * libabx::convertAbxToXmlFile(abx_file, "output.xml");
  * abx_file.close();
  * @endcode
  *
- * ### XML String to ABX
+ *  XML String to ABX
  * @code
  * std::ostringstream abx_stream;
  * libabx::convertXmlStringToAbx("<root><item>value</item></root>", abx_stream);
  * @endcode
  *
- * ### Advanced: Custom Serialization with Warning Callback
+ *  Advanced: Custom Serialization with Warning Callback
  * @code
  * auto warning_handler = [](const std::string& category, const std::string& msg) {
  *     std::cerr << "[" << category << "] " << msg << std::endl;
@@ -82,7 +82,7 @@ namespace libabx {
  * This is useful for logging namespace usage, unsupported features, or other
  * non-fatal issues encountered during conversion.
  *
- * @example
+ 
  * @code
  * auto handler = [](const std::string& cat, const std::string& msg) {
  *     std::cout << "Warning [" << cat << "]: " << msg << std::endl;
@@ -429,7 +429,7 @@ class FastDataOutput {
  *
  * @note Typically used indirectly through high-level API functions.
  *
- * @example
+ 
  * @code
  * std::ofstream file("output.abx", std::ios::binary);
  * libabx::BinaryXmlSerializer serializer(file);
@@ -444,10 +444,10 @@ class FastDataOutput {
  */
 class BinaryXmlSerializer {
    public:
-    // Magic number identifying ABX format version 0
+    /** Magic number identifying ABX format version 0 */
     static const uint8_t PROTOCOL_MAGIC_VERSION_0[4];
 
-    // Token command types (low nibble)
+    /** Token command types */
     static const uint8_t START_DOCUMENT = 0;    ///< Begin XML document
     static const uint8_t END_DOCUMENT = 1;      ///< End XML document
     static const uint8_t START_TAG = 2;         ///< Begin element
@@ -671,7 +671,7 @@ class BinaryXmlSerializer {
  *
  * @note Typically used indirectly through high-level API functions.
  *
- * @example
+ 
  * @code
  * std::ifstream file("input.abx", std::ios::binary);
  * std::ofstream xml_out("output.xml");
@@ -810,7 +810,7 @@ struct XmlToAbxOptions {
  * @param xml_node The XML node to serialize
  * @param options Conversion options
  *
- * @example
+ 
  * @code
  * pugi::xml_document doc;
  * doc.load_file("input.xml");
@@ -831,7 +831,7 @@ void serializeXmlToAbx(BinaryXmlSerializer& serializer, const pugi::xml_node& xm
 // ============================================================================
 
 /**
- * @defgroup HighLevelAPI High-Level API
+ * @defgroup HighLevelAPI High-Level Convenience Functions
  * @brief Convenient file and string conversion functions.
  *
  * These functions handle all parsing, serialization, and I/O automatically.
@@ -851,7 +851,7 @@ void serializeXmlToAbx(BinaryXmlSerializer& serializer, const pugi::xml_node& xm
  *
  * @throws std::runtime_error if file cannot be opened or XML parsing fails
  *
- * @example
+ 
  * @code
  * std::ofstream output("config.abx", std::ios::binary);
  * libabx::convertXmlFileToAbx("config.xml", output);
@@ -873,7 +873,7 @@ void convertXmlFileToAbx(const std::string& xml_path, std::ostream& abx_output,
  *
  * @throws std::runtime_error if XML parsing fails
  *
- * @example
+ 
  * @code
  * std::ostringstream output;
  * std::string xml = "<root><item id=\"42\">value</item></root>";
@@ -895,7 +895,7 @@ void convertXmlStringToAbx(const std::string& xml_string,
  *
  * @throws std::runtime_error if input is invalid or output file cannot be opened
  *
- * @example
+ 
  * @code
  * std::ifstream input("data.abx", std::ios::binary);
  * libabx::convertAbxToXmlFile(input, "output.xml");
@@ -915,7 +915,7 @@ void convertAbxToXmlFile(std::istream& abx_input, const std::string& xml_path);
  *
  * @throws std::runtime_error if input is invalid
  *
- * @example
+ 
  * @code
  * std::ifstream input("data.abx", std::ios::binary);
  * std::string xml = libabx::convertAbxToXmlString(input);
