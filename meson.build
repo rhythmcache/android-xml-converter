@@ -10,10 +10,13 @@ project('android-xml-converter', 'cpp',
     'b_lto=true',
     'b_pie=true',
     'b_staticpic=true',
-    'cpp_args=-Wno-unused-function'
   ]
 )
 
+cpp_comp = meson.get_compiler('cpp')
+if cpp_comp.has_argument('-Wno-unused-function')
+  add_project_arguments('-Wno-unused-function', language : 'cpp')
+endif
 
 pugixml_dep = dependency('pugixml', required: false)
 
