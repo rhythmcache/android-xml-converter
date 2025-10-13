@@ -1,4 +1,5 @@
 use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 use std::fmt;
 use std::ptr;
 
@@ -198,7 +199,9 @@ impl AbxException {
             if err_ptr.is_null() {
                 format!("ABX error: {:?}", code)
             } else {
-                CStr::from_ptr(err_ptr).to_string_lossy().into_owned()
+                CStr::from_ptr(err_ptr as *const c_char)
+                    .to_string_lossy()
+                    .into_owned()
             }
         };
 
@@ -288,7 +291,7 @@ impl Serializer {
         })?;
 
         let mut error = AbxError::Ok;
-        let handle = unsafe { abx_serializer_create_file(path.as_ptr(), &mut error) };
+        let handle = unsafe { abx_serializer_create_file(path.as_ptr() as *const i8, &mut error) };
 
         if handle.is_null() {
             Err(AbxException::from_error(error))
@@ -324,7 +327,7 @@ impl Serializer {
             message: "Invalid tag name".to_string(),
         })?;
 
-        let code = unsafe { abx_serializer_start_tag(self.handle, c_name.as_ptr()) };
+        let code = unsafe { abx_serializer_start_tag(self.handle, c_name.as_ptr() as *const i8) };
         check_error(code)
     }
 
@@ -334,7 +337,7 @@ impl Serializer {
             message: "Invalid tag name".to_string(),
         })?;
 
-        let code = unsafe { abx_serializer_end_tag(self.handle, c_name.as_ptr()) };
+        let code = unsafe { abx_serializer_end_tag(self.handle, c_name.as_ptr() as *const i8) };
         check_error(code)
     }
 
@@ -343,52 +346,71 @@ impl Serializer {
         let c_value = CString::new(value).unwrap();
 
         let code = unsafe {
-            abx_serializer_attribute_string(self.handle, c_name.as_ptr(), c_value.as_ptr())
+            abx_serializer_attribute_string(
+                self.handle,
+                c_name.as_ptr() as *const i8,
+                c_value.as_ptr() as *const i8,
+            )
         };
         check_error(code)
     }
 
     pub fn attribute_int(&mut self, name: &str, value: i32) -> Result<()> {
         let c_name = CString::new(name).unwrap();
-        let code = unsafe { abx_serializer_attribute_int(self.handle, c_name.as_ptr(), value) };
+        let code = unsafe {
+            abx_serializer_attribute_int(self.handle, c_name.as_ptr() as *const i8, value)
+        };
         check_error(code)
     }
 
     pub fn attribute_int_hex(&mut self, name: &str, value: i32) -> Result<()> {
         let c_name = CString::new(name).unwrap();
-        let code = unsafe { abx_serializer_attribute_int_hex(self.handle, c_name.as_ptr(), value) };
+        let code = unsafe {
+            abx_serializer_attribute_int_hex(self.handle, c_name.as_ptr() as *const i8, value)
+        };
         check_error(code)
     }
 
     pub fn attribute_long(&mut self, name: &str, value: i64) -> Result<()> {
         let c_name = CString::new(name).unwrap();
-        let code = unsafe { abx_serializer_attribute_long(self.handle, c_name.as_ptr(), value) };
+        let code = unsafe {
+            abx_serializer_attribute_long(self.handle, c_name.as_ptr() as *const i8, value)
+        };
         check_error(code)
     }
 
     pub fn attribute_long_hex(&mut self, name: &str, value: i64) -> Result<()> {
         let c_name = CString::new(name).unwrap();
-        let code =
-            unsafe { abx_serializer_attribute_long_hex(self.handle, c_name.as_ptr(), value) };
+        let code = unsafe {
+            abx_serializer_attribute_long_hex(self.handle, c_name.as_ptr() as *const i8, value)
+        };
         check_error(code)
     }
 
     pub fn attribute_float(&mut self, name: &str, value: f32) -> Result<()> {
         let c_name = CString::new(name).unwrap();
-        let code = unsafe { abx_serializer_attribute_float(self.handle, c_name.as_ptr(), value) };
+        let code = unsafe {
+            abx_serializer_attribute_float(self.handle, c_name.as_ptr() as *const i8, value)
+        };
         check_error(code)
     }
 
     pub fn attribute_double(&mut self, name: &str, value: f64) -> Result<()> {
         let c_name = CString::new(name).unwrap();
-        let code = unsafe { abx_serializer_attribute_double(self.handle, c_name.as_ptr(), value) };
+        let code = unsafe {
+            abx_serializer_attribute_double(self.handle, c_name.as_ptr() as *const i8, value)
+        };
         check_error(code)
     }
 
     pub fn attribute_bool(&mut self, name: &str, value: bool) -> Result<()> {
         let c_name = CString::new(name).unwrap();
         let code = unsafe {
-            abx_serializer_attribute_bool(self.handle, c_name.as_ptr(), if value { 1 } else { 0 })
+            abx_serializer_attribute_bool(
+                self.handle,
+                c_name.as_ptr() as *const i8,
+                if value { 1 } else { 0 },
+            )
         };
         check_error(code)
     }
@@ -398,7 +420,7 @@ impl Serializer {
         let code = unsafe {
             abx_serializer_attribute_bytes_hex(
                 self.handle,
-                c_name.as_ptr(),
+                c_name.as_ptr() as *const i8,
                 data.as_ptr(),
                 data.len(),
             )
@@ -411,7 +433,7 @@ impl Serializer {
         let code = unsafe {
             abx_serializer_attribute_bytes_base64(
                 self.handle,
-                c_name.as_ptr(),
+                c_name.as_ptr() as *const i8,
                 data.as_ptr(),
                 data.len(),
             )
@@ -421,19 +443,19 @@ impl Serializer {
 
     pub fn text(&mut self, text: &str) -> Result<()> {
         let c_text = CString::new(text).unwrap();
-        let code = unsafe { abx_serializer_text(self.handle, c_text.as_ptr()) };
+        let code = unsafe { abx_serializer_text(self.handle, c_text.as_ptr() as *const i8) };
         check_error(code)
     }
 
     pub fn cdata(&mut self, text: &str) -> Result<()> {
         let c_text = CString::new(text).unwrap();
-        let code = unsafe { abx_serializer_cdata(self.handle, c_text.as_ptr()) };
+        let code = unsafe { abx_serializer_cdata(self.handle, c_text.as_ptr() as *const i8) };
         check_error(code)
     }
 
     pub fn comment(&mut self, text: &str) -> Result<()> {
         let c_text = CString::new(text).unwrap();
-        let code = unsafe { abx_serializer_comment(self.handle, c_text.as_ptr()) };
+        let code = unsafe { abx_serializer_comment(self.handle, c_text.as_ptr() as *const i8) };
         check_error(code)
     }
 
@@ -467,7 +489,8 @@ impl Deserializer {
         })?;
 
         let mut error = AbxError::Ok;
-        let handle = unsafe { abx_deserializer_create_file(path.as_ptr(), &mut error) };
+        let handle =
+            unsafe { abx_deserializer_create_file(path.as_ptr() as *const i8, &mut error) };
 
         if handle.is_null() {
             Err(AbxException::from_error(error))
@@ -490,7 +513,7 @@ impl Deserializer {
 
     pub fn to_file(&self, output_path: &str) -> Result<()> {
         let path = CString::new(output_path).unwrap();
-        let code = unsafe { abx_deserializer_to_file(self.handle, path.as_ptr()) };
+        let code = unsafe { abx_deserializer_to_file(self.handle, path.as_ptr() as *const i8) };
         check_error(code)
     }
 
@@ -499,7 +522,7 @@ impl Deserializer {
         let mut buffer = vec![0i8; size];
         unsafe { abx_deserializer_to_string(self.handle, buffer.as_mut_ptr(), size) };
 
-        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr()) };
+        let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
         Ok(c_str.to_string_lossy().into_owned())
     }
 }
@@ -524,7 +547,11 @@ pub fn convert_xml_file_to_abx_file(
 
     let opts = options.unwrap_or_default().to_c();
     let code = unsafe {
-        abx_convert_xml_file_to_abx_file(c_xml_path.as_ptr(), c_abx_path.as_ptr(), &opts)
+        abx_convert_xml_file_to_abx_file(
+            c_xml_path.as_ptr() as *const i8,
+            c_abx_path.as_ptr() as *const i8,
+            &opts,
+        )
     };
     check_error(code)
 }
@@ -539,7 +566,11 @@ pub fn convert_xml_string_to_abx_file(
 
     let opts = options.unwrap_or_default().to_c();
     let code = unsafe {
-        abx_convert_xml_string_to_abx_file(c_xml_string.as_ptr(), c_abx_path.as_ptr(), &opts)
+        abx_convert_xml_string_to_abx_file(
+            c_xml_string.as_ptr() as *const i8,
+            c_abx_path.as_ptr() as *const i8,
+            &opts,
+        )
     };
     check_error(code)
 }
@@ -550,14 +581,20 @@ pub fn convert_xml_file_to_buffer(xml_path: &str, options: Option<Options>) -> R
     let mut error = AbxError::Ok;
 
     let size = unsafe {
-        abx_convert_xml_file_to_buffer(c_xml_path.as_ptr(), ptr::null_mut(), 0, &opts, &mut error)
+        abx_convert_xml_file_to_buffer(
+            c_xml_path.as_ptr() as *const i8,
+            ptr::null_mut(),
+            0,
+            &opts,
+            &mut error,
+        )
     };
     check_error(error)?;
 
     let mut buffer = vec![0u8; size];
     unsafe {
         abx_convert_xml_file_to_buffer(
-            c_xml_path.as_ptr(),
+            c_xml_path.as_ptr() as *const i8,
             buffer.as_mut_ptr(),
             size,
             &opts,
@@ -576,7 +613,7 @@ pub fn convert_xml_string_to_buffer(xml_string: &str, options: Option<Options>) 
 
     let size = unsafe {
         abx_convert_xml_string_to_buffer(
-            c_xml_string.as_ptr(),
+            c_xml_string.as_ptr() as *const i8,
             ptr::null_mut(),
             0,
             &opts,
@@ -588,7 +625,7 @@ pub fn convert_xml_string_to_buffer(xml_string: &str, options: Option<Options>) 
     let mut buffer = vec![0u8; size];
     unsafe {
         abx_convert_xml_string_to_buffer(
-            c_xml_string.as_ptr(),
+            c_xml_string.as_ptr() as *const i8,
             buffer.as_mut_ptr(),
             size,
             &opts,
@@ -604,15 +641,23 @@ pub fn convert_abx_file_to_xml_file(abx_path: &str, xml_path: &str) -> Result<()
     let c_abx_path = CString::new(abx_path).unwrap();
     let c_xml_path = CString::new(xml_path).unwrap();
 
-    let code =
-        unsafe { abx_convert_abx_file_to_xml_file(c_abx_path.as_ptr(), c_xml_path.as_ptr()) };
+    let code = unsafe {
+        abx_convert_abx_file_to_xml_file(
+            c_abx_path.as_ptr() as *const i8,
+            c_xml_path.as_ptr() as *const i8,
+        )
+    };
     check_error(code)
 }
 
 pub fn convert_abx_buffer_to_xml_file(abx_data: &[u8], xml_path: &str) -> Result<()> {
     let c_xml_path = CString::new(xml_path).unwrap();
     let code = unsafe {
-        abx_convert_abx_buffer_to_xml_file(abx_data.as_ptr(), abx_data.len(), c_xml_path.as_ptr())
+        abx_convert_abx_buffer_to_xml_file(
+            abx_data.as_ptr(),
+            abx_data.len(),
+            c_xml_path.as_ptr() as *const i8,
+        )
     };
     check_error(code)
 }
@@ -622,17 +667,27 @@ pub fn convert_abx_file_to_string(abx_path: &str) -> Result<String> {
     let mut error = AbxError::Ok;
 
     let size = unsafe {
-        abx_convert_abx_file_to_string(c_abx_path.as_ptr(), ptr::null_mut(), 0, &mut error)
+        abx_convert_abx_file_to_string(
+            c_abx_path.as_ptr() as *const i8,
+            ptr::null_mut(),
+            0,
+            &mut error,
+        )
     };
     check_error(error)?;
 
     let mut buffer = vec![0i8; size];
     unsafe {
-        abx_convert_abx_file_to_string(c_abx_path.as_ptr(), buffer.as_mut_ptr(), size, &mut error)
+        abx_convert_abx_file_to_string(
+            c_abx_path.as_ptr() as *const i8,
+            buffer.as_mut_ptr(),
+            size,
+            &mut error,
+        )
     };
     check_error(error)?;
 
-    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr()) };
+    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
     Ok(c_str.to_string_lossy().into_owned())
 }
 
@@ -662,7 +717,7 @@ pub fn convert_abx_buffer_to_string(abx_data: &[u8]) -> Result<String> {
     };
     check_error(error)?;
 
-    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr()) };
+    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
     Ok(c_str.to_string_lossy().into_owned())
 }
 
@@ -675,15 +730,15 @@ pub fn base64_encode(data: &[u8]) -> String {
     let mut buffer = vec![0i8; size];
     unsafe { abx_base64_encode(data.as_ptr(), data.len(), buffer.as_mut_ptr(), size) };
 
-    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr()) };
+    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
     c_str.to_string_lossy().into_owned()
 }
 
 pub fn base64_decode(encoded: &str) -> Vec<u8> {
     let c_encoded = CString::new(encoded).unwrap();
-    let size = unsafe { abx_base64_decode(c_encoded.as_ptr(), ptr::null_mut(), 0) };
+    let size = unsafe { abx_base64_decode(c_encoded.as_ptr() as *const i8, ptr::null_mut(), 0) };
     let mut buffer = vec![0u8; size];
-    unsafe { abx_base64_decode(c_encoded.as_ptr(), buffer.as_mut_ptr(), size) };
+    unsafe { abx_base64_decode(c_encoded.as_ptr() as *const i8, buffer.as_mut_ptr(), size) };
     buffer
 }
 
@@ -692,15 +747,15 @@ pub fn hex_encode(data: &[u8]) -> String {
     let mut buffer = vec![0i8; size];
     unsafe { abx_hex_encode(data.as_ptr(), data.len(), buffer.as_mut_ptr(), size) };
 
-    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr()) };
+    let c_str = unsafe { CStr::from_ptr(buffer.as_ptr() as *const c_char) };
     c_str.to_string_lossy().into_owned()
 }
 
 pub fn hex_decode(hex: &str) -> Vec<u8> {
     let c_hex = CString::new(hex).unwrap();
-    let size = unsafe { abx_hex_decode(c_hex.as_ptr(), ptr::null_mut(), 0) };
+    let size = unsafe { abx_hex_decode(c_hex.as_ptr() as *const i8, ptr::null_mut(), 0) };
     let mut buffer = vec![0u8; size];
-    unsafe { abx_hex_decode(c_hex.as_ptr(), buffer.as_mut_ptr(), size) };
+    unsafe { abx_hex_decode(c_hex.as_ptr() as *const i8, buffer.as_mut_ptr(), size) };
     buffer
 }
 
