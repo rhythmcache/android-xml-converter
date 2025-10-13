@@ -19,7 +19,7 @@
  *
  * @section usage_overview Quick Start
  *
- * ### Convert XML file to ABX file:
+ * @par Convert XML file to ABX file:
  * @code
  * abx_error_t err;
  * err = abx_convert_xml_file_to_abx_file("input.xml", "output.abx", NULL);
@@ -28,7 +28,7 @@
  * }
  * @endcode
  *
- * ### Convert ABX file to XML file:
+ *  Convert ABX file to XML file:
  * @code
  * abx_error_t err;
  * err = abx_convert_abx_file_to_xml_file("input.abx", "output.xml");
@@ -37,7 +37,7 @@
  * }
  * @endcode
  *
- * ### Custom serialization with builder pattern:
+ *  Custom serialization with builder pattern:
  * @code
  * abx_error_t err = ABX_OK;
  * abx_serializer_t* ser = abx_serializer_create_file("output.abx", &err);
@@ -56,7 +56,7 @@
  * abx_serializer_free(ser);
  * @endcode
  *
- * ### Work with in-memory buffers:
+ *  Work with in-memory buffers:
  * @code
  * abx_error_t err = ABX_OK;
  * uint8_t buffer[4096];
@@ -184,7 +184,7 @@ typedef enum {
  * @return Pointer to error message string, or NULL if no error has occurred
  * @note The returned pointer is valid until the next libabx call on this thread
  *
- * @example
+ 
  * @code
  * abx_error_t err = abx_convert_xml_file_to_abx_file("input.xml", "output.abx", NULL);
  * if (err != ABX_OK) {
@@ -231,7 +231,7 @@ typedef struct {
  * @param message Descriptive message about the warning
  * @param user_data User-provided context pointer (reserved for future use, currently NULL)
  *
- * @example
+ 
  * @code
  * void my_warning_handler(const char* category, const char* message, void* user_data) {
  *     fprintf(stderr, "Warning [%s]: %s\n", category, message);
@@ -260,7 +260,7 @@ typedef void (*abx_warning_callback_t)(const char* category, const char* message
  * @return Serializer handle on success, NULL on failure
  * @note Must be freed with abx_serializer_free()
  *
- * @example
+ 
  * @code
  * abx_error_t err;
  * abx_serializer_t* ser = abx_serializer_create_file("output.abx", &err);
@@ -284,7 +284,7 @@ abx_serializer_t* abx_serializer_create_file(const char* filepath, abx_error_t* 
  * @return Serializer handle on success, NULL on failure
  * @note Must be freed with abx_serializer_free()
  *
- * @example
+ 
  * @code
  * abx_serializer_t* ser = abx_serializer_create_buffer(NULL);
  * // ... build document ...
@@ -328,7 +328,7 @@ abx_error_t abx_serializer_end_document(abx_serializer_t* serializer);
  * @param name Element tag name
  * @return ABX_OK on success, error code on failure
  *
- * @example
+ 
  * @code
  * abx_serializer_start_tag(ser, "root");
  * abx_serializer_start_tag(ser, "child");
@@ -494,7 +494,7 @@ abx_error_t abx_serializer_comment(abx_serializer_t* serializer, const char* tex
  * @return Number of bytes in the binary data (not including null terminator).
  *         If out_buffer was provided and is too small, the data is not copied.
  *
- * @example
+ 
  * @code
  * // First call: get the size
  * size_t size = abx_serializer_get_buffer(ser, NULL, 0);
@@ -588,7 +588,7 @@ abx_error_t abx_deserializer_to_file(abx_deserializer_t* deserializer, const cha
  * @return Required size including null terminator. If out_buffer was provided and
  *         is too small, the data is not copied.
  *
- * @example
+ 
  * @code
  * // First call: get the size
  * size_t size = abx_deserializer_to_string(deser, NULL, 0);
@@ -632,7 +632,7 @@ void abx_deserializer_free(abx_deserializer_t* deserializer);
  * @param options Optional conversion options (NULL for defaults)
  * @return ABX_OK on success, error code on failure
  *
- * @example
+ 
  * @code
  * abx_error_t err = abx_convert_xml_file_to_abx_file("config.xml", "config.abx", NULL);
  * if (err != ABX_OK) {
@@ -693,7 +693,7 @@ size_t abx_convert_xml_string_to_buffer(const char* xml_string, uint8_t* out_buf
  * @param xml_path Path where the XML file will be written
  * @return ABX_OK on success, error code on failure
  *
- * @example
+ 
  * @code
  * abx_error_t err = abx_convert_abx_file_to_xml_file("data.abx", "data.xml");
  * if (err != ABX_OK) {
