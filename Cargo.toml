@@ -1,6 +1,6 @@
 [package]
 name = "android-xml-converter"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["rhythmcache"]
 description = "Rust-wrapper around libabx providing conversion between ABX and XML"
