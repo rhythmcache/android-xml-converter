@@ -118,6 +118,23 @@ uint8_t FastDataInput::readByte() {
   return value;
 }
 
+uint8_t FastDataInput::peekByte() {
+  // Save current position
+  std::streampos current_pos = input_stream.tellg();
+
+  // Read the byte
+  uint8_t value;
+  input_stream.read(reinterpret_cast<char *>(&value), 1);
+  if (!input_stream) {
+    throw std::runtime_error("Failed to peek byte from stream");
+  }
+
+  // Restore position (don't consume the byte)
+  input_stream.seekg(current_pos);
+
+  return value;
+}
+
 uint16_t FastDataInput::readShort() {
   uint16_t be_value;
   input_stream.read(reinterpret_cast<char *>(&be_value), 2);
@@ -399,19 +416,16 @@ void BinaryXmlDeserializer::deserialize() {
       case START_TAG: {
         std::string tagName = mIn->readInternedUTF();
         mOut << "<" << tagName;
-
-        while (true) {
-          std::streampos pos = mIn->tellg();
+        while (!mIn->eof()) {
           try {
-            uint8_t nextToken = mIn->readByte();
+            uint8_t nextToken = mIn->peekByte();
             if ((nextToken & 0x0F) == ATTRIBUTE) {
+              mIn->readByte();
               processAttribute(nextToken);
             } else {
-              mIn->seekg(pos);
               break;
             }
           } catch (const std::runtime_error &) {
-            mIn->seekg(pos);
             break;
           }
         }

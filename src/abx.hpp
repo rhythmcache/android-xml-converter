@@ -199,6 +199,23 @@ class FastDataInput {
      * @throws std::runtime_error if read fails
      */
     uint8_t readByte();
+    
+    /**
+    * @brief Peek at the next byte in the stream without consuming it.
+    *
+    * Reads the next byte from the input stream but does not advance the read position.
+    * This allows inspection of upcoming data without modifying the stream state.
+    *
+    * @return The next byte value in range [0, 255]
+    * @throws std::runtime_error if read fails or stream is at EOF
+    *
+    * @note This method temporarily saves and restores the stream position,
+    *       making it safe for lookahead operations without disrupting the
+    *       normal reading flow.
+    *
+    * @see readByte()
+    */
+    uint8_t peekByte();
 
     /**
      * @brief Read a 16-bit unsigned integer in big-endian format.
