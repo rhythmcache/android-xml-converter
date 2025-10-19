@@ -148,23 +148,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Generate tag name
-        id: tag
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            COMMIT_MSG=$(git log -1 --pretty=%s)
-            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-            TAG_NAME="v${TIMESTAMP}-${COMMIT_MSG//[^a-zA-Z0-9]/-}"
-            TAG_NAME=$(echo "$TAG_NAME" | tr '[:upper:]' '[:lower:]' | cut -c1-50)
-            echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
-          fi
-      
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -173,20 +156,16 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.name }}
-          name: Release ${{ steps.tag.outputs.name }}
+          tag_name: build-${{ github.run_number }}
+          name: "Build ${{ github.run_number }}"
           body: |
-            Automated release for commit: ${{ github.sha }}
-            Commit message: ${{ github.event.head_commit.message }}
+            
+            Automated build from workflow run #${{ github.run_number }}
+            
+            **Commit:** ${{ github.sha }}
+            **Date:** $(date +'%Y-%m-%d %H:%M:%S UTC')
           files: |
-            artifacts/abx-tools-windows-x64/*.zip
-            artifacts/abx-tools-windows-x86/*.zip
-            artifacts/abx-tools-android-aarch64/*.tar.gz
-            artifacts/abx-tools-android-armv7a/*.tar.gz
-            artifacts/abx-tools-android-x86_64/*.tar.gz
-            artifacts/abx-tools-android-i686/*.tar.gz
-            artifacts/abx-tools-android-riscv64/*.tar.gz
-          draft: false
-          prerelease: false
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
