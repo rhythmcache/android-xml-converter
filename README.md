@@ -28,6 +28,21 @@ meson compile -C builddir
 ```
 ---
 
+## Rust Implementations
+
+There are also Rust versions of these converters, implementing the same functionality:
+
+- [abx2xml-rs](https://github.com/rhythmcache/abx2xml-rs) – `abx2xml`.
+- [xml2abx-rs](https://github.com/rhythmcache/xml2abx-rs) – `xml2abx`.
+
+These Rust versions can be installed via Cargo:
+
+```bash
+cargo install abx2xml
+cargo install xml2abx
+```
+---
+
 ### Sources
 [BinaryXmlPullParser.java](https://cs.android.com/android/platform/superproject/main/+/main:/frameworks/libs/modules-utils/java/com/android/modules/utils/BinaryXmlPullParser.java)
 [BinaryXmlSerializer.java](https://cs.android.com/android/platform/superproject/main/+/main:/frameworks/libs/modules-utils/java/com/android/modules/utils/BinaryXmlSerializer.java)
