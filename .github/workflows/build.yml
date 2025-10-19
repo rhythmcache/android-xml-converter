@@ -5,9 +5,6 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-  
-permissions:
-  contents: write  
 
 jobs:
   build-windows:
@@ -148,10 +145,26 @@ jobs:
   release:
     needs: [build-windows, build-android]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate tag name
+        id: tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            COMMIT_MSG=$(git log -1 --pretty=%s)
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            TAG_NAME="v${TIMESTAMP}-${COMMIT_MSG//[^a-zA-Z0-9]/-}"
+            TAG_NAME=$(echo "$TAG_NAME" | tr '[:upper:]' '[:lower:]' | cut -c1-50)
+            echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -160,6 +173,11 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: Release ${{ steps.tag.outputs.name }}
+          body: |
+            Automated release for commit: ${{ github.sha }}
+            Commit message: ${{ github.event.head_commit.message }}
           files: |
             artifacts/abx-tools-windows-x64/*.zip
             artifacts/abx-tools-windows-x86/*.zip
