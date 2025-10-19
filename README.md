@@ -15,7 +15,7 @@ This is just an experimental code to convert between android xml formats (abx an
 
 - `abx2xml [-i] input [output]`
 
-- `xml2abx [-i] [--collapse-whitespaces] input [output]`
+- `xml2abx [-i] [--collapse-whitespace] input [output]`
 
 
 ## Building
@@ -23,40 +23,10 @@ This is just an experimental code to convert between android xml formats (abx an
 #### Build Steps (C/C++ via Meson)
 
 ```bash
-meson setup builddir --buildtype=release
+meson setup builddir
 meson compile -C builddir
 ```
 ---
-
-### Rust Build (Cargo)
-
-The Rust interface wraps the same logic using FFI bindings.
-
-```bash
-cargo build --release
-```
-or
-```
-cargo install android-xml-converter
-```
----
-
-## Documentation
-
-It also provides some APIs to convert between **ABX** and **XML**.
-
-- **C/C++ API documentation**:
-See the [C API header](./src/abx.h) or the [C++ API header](./src/abx.hpp), or generate documentation by running:
-```bash
-doxygen Doxyfile
-```
-
-- **Rust API documentation**:
-
-```bash
-cargo doc --open
-```
-
 
 ### Sources
 [BinaryXmlPullParser.java](https://cs.android.com/android/platform/superproject/main/+/main:/frameworks/libs/modules-utils/java/com/android/modules/utils/BinaryXmlPullParser.java)

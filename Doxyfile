@@ -1,7 +1,0 @@
-PROJECT_NAME = "android-xml-converter"
-OUTPUT_DIRECTORY = docs
-INPUT = src/abx.h src/abx.hpp
-RECURSIVE = YES
-GENERATE_HTML = YES
-GENERATE_LATEX = NO
-HAVE_DOT = YES

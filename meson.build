@@ -1,86 +1,144 @@
-project('android-xml-converter', 'cpp',
-  version: '0.2.0',
+project('abx-tools', 'cpp',
+  version: '0.2.1',
   default_options: [
-    'cpp_std=c++17',
+    'cpp_std=c++20',
     'warning_level=2',
+    'werror=false',
+    'default_library=static',
     'buildtype=release',
     'optimization=3',
     'b_ndebug=true',
-    'strip=true',
-    'b_lto=true',
-    'b_pie=true',
-    'b_staticpic=true',
-  ]
+  ],
+  license: 'MIT',
+  meson_version: '>=0.55.0'
 )
 
-cpp_comp = meson.get_compiler('cpp')
-if cpp_comp.has_argument('-Wno-unused-function')
-  add_project_arguments('-Wno-unused-function', language : 'cpp')
+pkg_version = meson.project_version()
+pkg_name = meson.project_name()
+
+includedir = get_option('includedir')
+libdir = get_option('libdir')
+
+is_windows = host_machine.system() == 'windows'
+
+abx2xml_sources = files('src/abx2xml/abx2xml.cc')
+abx2xml_headers = files('src/abx2xml/abx2xml.hpp')
+
+
+if not is_windows
+  libabx2xml_shared = shared_library('abx2xml',
+    abx2xml_sources,
+    install: true,
+    version: pkg_version,
+    soversion: '1',
+    include_directories: include_directories('src/abx2xml')
+  )
 endif
 
-pugixml_dep = dependency('pugixml', required: false)
 
-if not pugixml_dep.found()
-  message('pugixml not found, building from source')
-  
-  fs = import('fs')
-  if not fs.is_dir('subprojects/pugixml')
-    message('Downloading pugixml...')
-    pugixml_proj = subproject('pugixml',
-      default_options: ['tests=false', 'default_library=static']
-    )
-    pugixml_dep = pugixml_proj.get_variable('pugixml_dep')
-  else
-    pugixml_proj = subproject('pugixml',
-      default_options: ['tests=false', 'default_library=static']
-    )
-    pugixml_dep = pugixml_proj.get_variable('pugixml_dep')
-  endif
-endif
-
-# Library sources - includes both C++ and C wrapper
-libabx_sources = files(
-  'src/abx.cc',
-  'src/abx_c.cc'
+libabx2xml_static = static_library('abx2xml',
+  abx2xml_sources,
+  install: true,
+  include_directories: include_directories('src/abx2xml')
 )
 
-libabx_headers = files('src/abx.hpp')
-libabx_c_headers = files('src/abx.h')
+install_headers(abx2xml_headers, subdir: 'abx2xml')
 
-# Build library with both C++ and C API
-libabx = static_library('abx',
-  libabx_sources,
+
+if not is_windows
+  pkg = import('pkgconfig')
+  pkg.generate(
+    libabx2xml_shared,
+    name: 'abx2xml',
+    description: 'Android Binary XML to XML converter library',
+    version: pkg_version,
+    filebase: 'abx2xml',
+    subdirs: 'abx2xml'
+  )
+endif
+
+
+abx2xml_dep = declare_dependency(
+  link_with: libabx2xml_static,
+  include_directories: include_directories('src/abx2xml')
+)
+
+abx2xml_cli = executable('abx2xml',
+  'src/abx2xml/cli_abx2xml.cc',
+  dependencies: abx2xml_dep,
+  install: true
+)
+
+pugixml_dep = dependency('pugixml', 
+  fallback: ['pugixml', 'pugixml_dep'],
+  required: true,
+  default_options: ['tests=false']
+)
+
+xml2abx_sources = files('src/xml2abx/xml2abx.cc')
+xml2abx_headers = files('src/xml2abx/xml2abx.hpp')
+
+
+if not is_windows
+  libxml2abx_shared = shared_library('xml2abx',
+    xml2abx_sources,
+    dependencies: pugixml_dep,
+    install: true,
+    version: pkg_version,
+    soversion: '1',
+    include_directories: include_directories('src/xml2abx')
+  )
+endif
+
+
+libxml2abx_static = static_library('xml2abx',
+  xml2abx_sources,
   dependencies: pugixml_dep,
-  include_directories: include_directories('src'),
+  install: true,
+  include_directories: include_directories('src/xml2abx')
+)
+
+install_headers(xml2abx_headers, subdir: 'xml2abx')
+
+
+if not is_windows
+  pkg.generate(
+    libxml2abx_shared,
+    name: 'xml2abx',
+    description: 'XML to Android Binary XML converter library',
+    version: pkg_version,
+    filebase: 'xml2abx',
+    subdirs: 'xml2abx',
+    requires: 'pugixml'
+  )
+endif
+
+
+xml2abx_dep = declare_dependency(
+  link_with: libxml2abx_static,
+  dependencies: pugixml_dep,
+  include_directories: include_directories('src/xml2abx')
+)
+
+xml2abx_cli = executable('xml2abx',
+  'src/xml2abx/cli_xml2abx.cc',
+  dependencies: xml2abx_dep,
   install: true
 )
 
-libabx_dep = declare_dependency(
-  link_with: libabx,
-  include_directories: include_directories('src'),
-  dependencies: pugixml_dep
-)
+summary({
+  'prefix': get_option('prefix'),
+  'libdir': get_option('libdir'),
+  'includedir': get_option('includedir'),
+}, section: 'Directories')
 
-# Install both C++ and C headers
-install_headers(libabx_headers, subdir: 'libabx')
-install_headers(libabx_c_headers, subdir: 'libabx')
+summary({
+  'abx2xml library': 'standalone (no dependencies)',
+  'xml2abx library': 'requires pugixml',
+  'Build type': is_windows ? 'static only' : 'static + shared',
+}, section: 'Libraries')
 
-# CLI tools
-abx2xml = executable('abx2xml',
-  'src/cli/abx2xml.cc',
-  dependencies: libabx_dep,
-  install: true
-)
-
-xml2abx = executable('xml2abx',
-  'src/cli/xml2abx.cc',
-  dependencies: libabx_dep,
-  install: true
-)
-
-pkg = import('pkgconfig')
-pkg.generate(libabx,
-  description: 'Android Binary XML converter library with C and C++ API',
-  name: 'libabx',
-  filebase: 'libabx'
-)
+summary({
+  'abx2xml': true,
+  'xml2abx': true,
+}, section: 'CLI Tools', bool_yn: true)
