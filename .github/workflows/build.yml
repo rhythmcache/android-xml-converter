@@ -29,7 +29,7 @@ jobs:
           arch: ${{ matrix.arch }}
       
       - name: Configure
-        run: meson setup builddir --prefix=${{ github.workspace }}/install -Ddefault_library=static
+        run: meson setup builddir --prefix=${{ github.workspace }}/install -Ddefault_library=static -Db_vscrt=static_from_buildtype
       
       - name: Build
         run: meson compile -C builddir
@@ -38,8 +38,12 @@ jobs:
         run: meson install -C builddir
       
       - name: Package
+        shell: bash
         run: |
-          cd install
+          mkdir package
+          cp install/bin/abx2xml.exe package/ 2>/dev/null || cp install/bin/abx2xml package/ || true
+          cp install/bin/xml2abx.exe package/ 2>/dev/null || cp install/bin/xml2abx package/ || true
+          cd package
           7z a ../abx-tools-windows-${{ matrix.arch }}.zip *
       
       - name: Upload artifacts
@@ -47,6 +51,113 @@ jobs:
         with:
           name: abx-tools-windows-${{ matrix.arch }}
           path: abx-tools-windows-${{ matrix.arch }}.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            gcc_arch: x86-64
+            triplet: x86_64-linux-gnu
+          - arch: x86
+            gcc_arch: i686
+            triplet: i686-linux-gnu
+          - arch: aarch64
+            gcc_arch: aarch64
+            triplet: aarch64-linux-gnu
+          - arch: armv7
+            gcc_arch: armhf
+            triplet: arm-linux-gnueabihf
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      
+      - name: Install Meson and Ninja
+        run: pip install meson ninja
+      
+      - name: Install cross-compilation toolchain
+        run: |
+          sudo apt-get update
+          if [ "${{ matrix.arch }}" = "x86" ]; then
+            sudo apt-get install -y gcc-multilib g++-multilib
+          elif [ "${{ matrix.arch }}" != "x86_64" ]; then
+            sudo apt-get install -y gcc-${{ matrix.triplet }} g++-${{ matrix.triplet }}
+          fi
+      
+      - name: Create Cross File
+        if: matrix.arch != 'x86_64'
+        run: |
+          cat > linux-${{ matrix.arch }}.txt << EOF
+          [binaries]
+          c = '${{ matrix.arch == 'x86' && 'gcc' || matrix.triplet }}-gcc'
+          cpp = '${{ matrix.arch == 'x86' && 'g++' || matrix.triplet }}-g++'
+          ar = '${{ matrix.arch == 'x86' && 'gcc-ar' || matrix.triplet }}-gcc-ar'
+          strip = '${{ matrix.arch == 'x86' && 'strip' || matrix.triplet }}-strip'
+
+          [properties]
+          c_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
+          cpp_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
+          c_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
+          cpp_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
+
+          [host_machine]
+          system = 'linux'
+          cpu_family = '${{ matrix.arch == 'armv7' && 'arm' || matrix.arch == 'x86' && 'x86' || matrix.arch }}'
+          cpu = '${{ matrix.gcc_arch }}'
+          endian = 'little'
+          EOF
+      
+      - name: Configure (native)
+        if: matrix.arch == 'x86_64'
+        run: |
+          meson setup builddir \
+            --prefix=${{ github.workspace }}/install \
+            -Ddefault_library=static \
+            -Dc_args='-O3 -DNDEBUG -flto -ffast-math -fomit-frame-pointer -ffunction-sections -fdata-sections' \
+            -Dcpp_args='-O3 -DNDEBUG -flto -ffast-math -fomit-frame-pointer -ffunction-sections -fdata-sections' \
+            -Dc_link_args='-static -flto -Wl,--gc-sections -Wl,--strip-all' \
+            -Dcpp_link_args='-static -flto -Wl,--gc-sections -Wl,--strip-all'
+      
+      - name: Configure (cross)
+        if: matrix.arch != 'x86_64'
+        run: |
+          meson setup builddir \
+            --cross-file linux-${{ matrix.arch }}.txt \
+            --prefix=${{ github.workspace }}/install \
+            -Ddefault_library=static
+      
+      - name: Build
+        run: meson compile -C builddir
+      
+      - name: Install
+        run: meson install -C builddir
+      
+      - name: Strip binaries
+        run: |
+          if [ "${{ matrix.arch }}" = "x86_64" ] || [ "${{ matrix.arch }}" = "x86" ]; then
+            strip install/bin/* 2>/dev/null || true
+          else
+            ${{ matrix.triplet }}-strip install/bin/* 2>/dev/null || true
+          fi
+      
+      - name: Package
+        run: |
+          mkdir package
+          cp install/bin/abx2xml package/ 2>/dev/null || true
+          cp install/bin/xml2abx package/ 2>/dev/null || true
+          cd package
+          tar -czf ../abx-tools-linux-${{ matrix.arch }}.tar.gz *
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: abx-tools-linux-${{ matrix.arch }}
+          path: abx-tools-linux-${{ matrix.arch }}.tar.gz
 
   build-android:
     runs-on: ubuntu-latest
@@ -129,11 +240,14 @@ jobs:
       
       - name: Strip binaries
         run: |
-          ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip install/bin/*
+          ${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip install/bin/* 2>/dev/null || true
       
       - name: Package
         run: |
-          cd install
+          mkdir package
+          cp install/bin/abx2xml package/ 2>/dev/null || true
+          cp install/bin/xml2abx package/ 2>/dev/null || true
+          cd package
           tar -czf ../abx-tools-android-${{ matrix.arch }}.tar.gz *
       
       - name: Upload artifacts
@@ -143,7 +257,7 @@ jobs:
           path: abx-tools-android-${{ matrix.arch }}.tar.gz
 
   release:
-    needs: [build-windows, build-android]
+    needs: [build-windows, build-linux, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -162,8 +276,6 @@ jobs:
             
             Automated build from workflow run #${{ github.run_number }}
             
-            **Commit:** ${{ github.sha }}
-            **Date:** $(date +'%Y-%m-%d %H:%M:%S UTC')
           files: |
             artifacts/**/*.zip
             artifacts/**/*.tar.gz
