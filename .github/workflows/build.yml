@@ -92,25 +92,47 @@ jobs:
       - name: Create Cross File
         if: matrix.arch != 'x86_64'
         run: |
-          cat > linux-${{ matrix.arch }}.txt << EOF
+          if [ "${{ matrix.arch }}" = "x86" ]; then
+            cat > linux-${{ matrix.arch }}.txt << 'EOF'
           [binaries]
-          c = '${{ matrix.arch == 'x86' && 'gcc' || matrix.triplet }}-gcc'
-          cpp = '${{ matrix.arch == 'x86' && 'g++' || matrix.triplet }}-g++'
-          ar = '${{ matrix.arch == 'x86' && 'gcc-ar' || matrix.triplet }}-gcc-ar'
-          strip = '${{ matrix.arch == 'x86' && 'strip' || matrix.triplet }}-strip'
+          c = 'gcc'
+          cpp = 'g++'
+          ar = 'gcc-ar'
+          strip = 'strip'
 
-          [properties]
-          c_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
-          cpp_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
-          c_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
-          cpp_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all'${{ matrix.arch == 'x86' && ', ''-m32''' || '' }}]
+          [built-in options]
+          c_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections', '-m32']
+          cpp_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections', '-m32']
+          c_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all', '-m32']
+          cpp_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all', '-m32']
 
           [host_machine]
           system = 'linux'
-          cpu_family = '${{ matrix.arch == 'armv7' && 'arm' || matrix.arch == 'x86' && 'x86' || matrix.arch }}'
+          cpu_family = 'x86'
+          cpu = 'i686'
+          endian = 'little'
+          EOF
+          else
+            cat > linux-${{ matrix.arch }}.txt << EOF
+          [binaries]
+          c = '${{ matrix.triplet }}-gcc'
+          cpp = '${{ matrix.triplet }}-g++'
+          ar = '${{ matrix.triplet }}-gcc-ar'
+          strip = '${{ matrix.triplet }}-strip'
+
+          [built-in options]
+          c_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections']
+          cpp_args = ['-O3', '-DNDEBUG', '-flto', '-ffast-math', '-fomit-frame-pointer', '-ffunction-sections', '-fdata-sections']
+          c_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all']
+          cpp_link_args = ['-static', '-flto', '-Wl,--gc-sections', '-Wl,--strip-all']
+
+          [host_machine]
+          system = 'linux'
+          cpu_family = '${{ matrix.arch == 'armv7' && 'arm' || matrix.arch }}'
           cpu = '${{ matrix.gcc_arch }}'
           endian = 'little'
           EOF
+          fi
       
       - name: Configure (native)
         if: matrix.arch == 'x86_64'
@@ -276,6 +298,8 @@ jobs:
             
             Automated build from workflow run #${{ github.run_number }}
             
+            **Commit:** ${{ github.sha }}
+            **Date:** $(date +'%Y-%m-%d %H:%M:%S UTC')
           files: |
             artifacts/**/*.zip
             artifacts/**/*.tar.gz
