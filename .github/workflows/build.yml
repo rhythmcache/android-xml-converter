@@ -297,9 +297,7 @@ jobs:
           body: |
             
             Automated build from workflow run #${{ github.run_number }}
-            
-            **Commit:** ${{ github.sha }}
-            **Date:** $(date +'%Y-%m-%d %H:%M:%S UTC')
+  
           files: |
             artifacts/**/*.zip
             artifacts/**/*.tar.gz
