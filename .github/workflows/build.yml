@@ -8,10 +8,23 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
     strategy:
       matrix:
-        arch: [x64, x86]
+        include:
+          - arch: "x64"
+            target: "x64"
+            runner: windows-latest
+          - arch: "x86"
+            target: "x86"
+            runner: windows-latest
+          - arch: "arm64"
+            target: "arm64"
+            runner: windows-11-arm
+          - arch: "arm"
+            target: "amd64_arm"
+            runner: windows-latest
+            winsdk: "10.0.22621.0"
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       
@@ -23,13 +36,56 @@ jobs:
       - name: Install Meson and Ninja
         run: pip install meson ninja
       
-      - name: Setup MSVC
+      - name: Install Windows SDK 10.0.22621.0 C++ ARM Tools
+        uses: ChristopheLav/windows-sdk-install@v1.0.4
+        if: matrix.arch == 'arm'
+        with:
+          version-sdk: 22621
+          features: 'OptionId.DesktopCPParm'
+
+      - name: Setup MSVC (native)
+        if: matrix.arch != 'arm'
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: ${{ matrix.arch }}
+          arch: ${{ matrix.target }}
       
-      - name: Configure
+      - name: Setup MSVC (arm 10.0.22621.0 cross)
+        if: matrix.arch == 'arm'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.target }}
+          sdk: ${{ matrix.winsdk }}
+
+      - name: Create cross-compilation file
+        if: matrix.arch == 'arm'
+        shell: pwsh
+        run: |
+          Set-Content windows-${{ matrix.arch }}.txt @'
+          [binaries]
+          c = 'cl.exe'
+          cpp = 'cl.exe'
+          exe_wrapper = 'dumpbin.exe'
+
+          [build_machine]
+          system = 'windows'
+          cpu_family = 'x86_64'
+          cpu = 'x86_64'
+          endian = 'little'
+
+          [host_machine]
+          system = 'windows'
+          cpu_family = '${{ matrix.arch }}'
+          cpu = '${{ matrix.arch }}'
+          endian = 'little'
+          '@
+
+      - name: Configure (native)
+        if: matrix.arch != 'arm'
         run: meson setup builddir --prefix=${{ github.workspace }}/install -Ddefault_library=static -Db_vscrt=static_from_buildtype
+
+      - name: Configure (cross)
+        if: matrix.arch == 'arm'
+        run: meson setup builddir --prefix=${{ github.workspace }}/install -Ddefault_library=static -Db_vscrt=static_from_buildtype --cross-file windows-${{ matrix.arch }}.txt
       
       - name: Build
         run: meson compile -C builddir
