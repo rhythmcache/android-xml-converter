@@ -28,19 +28,14 @@ meson compile -C builddir
 ```
 ---
 
-## Rust Implementations
+or
 
-There are also Rust versions of these converters, implementing the same functionality:
-
-- [abx2xml-rs](https://github.com/rhythmcache/abx2xml-rs) – `abx2xml`.
-- [xml2abx-rs](https://github.com/rhythmcache/xml2abx-rs) – `xml2abx`.
-
-These Rust versions can be installed via Cargo:
-
+### Rust
 ```bash
-cargo install abx2xml
-cargo install xml2abx
+cargo build --releaae
+# Needs rust toolchain and cargo installed
 ```
+
 ---
 
 ### Sources
