@@ -23,15 +23,15 @@ is_windows = host_machine.system() == 'windows'
 build_shared = get_option('default_library') in ['shared', 'both'] and not is_windows
 
 
-abx2xml_sources = files('src/abx2xml/abx2xml.cc')
-abx2xml_headers = files('src/abx2xml/abx2xml.hpp')
+abx2xml_sources = files('src/cpp/abx2xml/abx2xml.cc')
+abx2xml_headers = files('src/cpp/abx2xml/abx2xml.hpp')
 
 libabx2xml = library('abx2xml',
     abx2xml_sources,
     install: true,
     version: pkg_version,
     soversion: '1',
-    include_directories: include_directories('src/abx2xml')
+    include_directories: include_directories('src/cpp/abx2xml')
 )
 
 install_headers(abx2xml_headers, subdir: 'abx2xml')
@@ -50,11 +50,11 @@ endif
 
 abx2xml_dep = declare_dependency(
     link_with: libabx2xml,
-    include_directories: include_directories('src/abx2xml')
+    include_directories: include_directories('src/cpp/abx2xml')
 )
 
 abx2xml_cli = executable('abx2xml',
-    'src/abx2xml/cli_abx2xml.cc',
+    'src/cpp/abx2xml/cli_abx2xml.cc',
     dependencies: abx2xml_dep,
     install: true
 )
@@ -66,8 +66,8 @@ pugixml_dep = dependency('pugixml',
     default_options: ['tests=false']
 )
 
-xml2abx_sources = files('src/xml2abx/xml2abx.cc')
-xml2abx_headers = files('src/xml2abx/xml2abx.hpp')
+xml2abx_sources = files('src/cpp/xml2abx/xml2abx.cc')
+xml2abx_headers = files('src/cpp/xml2abx/xml2abx.hpp')
 
 libxml2abx = library('xml2abx',
     xml2abx_sources,
@@ -75,7 +75,7 @@ libxml2abx = library('xml2abx',
     install: true,
     version: pkg_version,
     soversion: '1',
-    include_directories: include_directories('src/xml2abx')
+    include_directories: include_directories('src/cpp/xml2abx')
 )
 
 install_headers(xml2abx_headers, subdir: 'xml2abx')
@@ -95,11 +95,11 @@ endif
 xml2abx_dep = declare_dependency(
     link_with: libxml2abx,
     dependencies: pugixml_dep,
-    include_directories: include_directories('src/xml2abx')
+    include_directories: include_directories('src/cpp/xml2abx')
 )
 
 xml2abx_cli = executable('xml2abx',
-    'src/xml2abx/cli_xml2abx.cc',
+    'src/cpp/xml2abx/cli_xml2abx.cc',
     dependencies: xml2abx_dep,
     install: true
 )

@@ -1,0 +1,47 @@
+[package]
+name = "android-xml-converter"
+version = "0.1.0"
+edition = "2024"
+authors = ["rhythmcache"]
+description = "This is just an experimental code to convert between android xml formats (abx and xml). Functionality is not guaranteed."
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/rhythmcache/android-xml-converter.git"
+keywords = ["xml", "android", "abx2xml", "converter", "xml2abx"]
+categories = ["parsing", "command-line-utilities"]
+
+include = [
+    "src/lib.rs",
+    "src/abx2xml.rs",
+    "src/xml2abx.rs",
+    "LICENSE",
+    "README.md",
+    "Cargo.toml"
+]
+
+[[bin]]
+name = "abx2xml"
+path = "src/abx2xml.rs"
+
+[[bin]]
+name = "xml2abx"
+path = "src/xml2abx.rs"
+
+[lib]
+name = "android_xml_converter"
+path = "src/lib.rs"
+
+[dependencies]
+base64 = "0.22.1"
+byteorder = "1.5.0"
+hex = "0.4.3"
+quick-xml = "0.38.4"
+thiserror = "2.0.17"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+incremental = false
