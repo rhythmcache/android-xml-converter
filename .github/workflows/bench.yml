@@ -13,19 +13,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup MSVC (Windows)
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          targets: ${{ runner.os == 'Windows' && 'x86_64-pc-windows-msvc' || '' }}
       
       - name: Install hyperfine
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         run: cargo install hyperfine
       
       - name: Setup Python
@@ -34,21 +28,18 @@ jobs:
           python-version: '3.11'
       
       - name: Install dependencies
-        if: runner.os == 'Linux'
-        run: |
-           pip install matplotlib psutil meson ninja
-      
-      - name: Install dependencies
-        if: runner.os == 'Windows'
-        run: |
-          pip install matplotlib psutil meson ninja
-      
-      - name: Install dependencies
-        if: runner.os == 'macOS'
-        run: |
-          pip install matplotlib psutil meson ninja
+        run: pip install matplotlib psutil meson ninja
       
       - name: Run tests
+        working-directory: tests
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        env: 
+          PYTHONENCODING: utf-8
+        run: |
+          if (Get-Command python3 -ErrorAction SilentlyContinue) { python3 test.py } else { python test.py }
+      
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
         working-directory: tests
         shell: bash
         env: 
@@ -60,7 +51,17 @@ jobs:
             python test.py
           fi
       
-      - name: Run benchmarks
+      - name: Run benchmarks (Windows)
+        if: runner.os == 'Windows'
+        working-directory: tests
+        shell: pwsh
+        env: 
+          PYTHONENCODING: utf-8
+        run: |
+          if (Get-Command python3 -ErrorAction SilentlyContinue) { python3 benchmark.py } else { python benchmark.py }
+      
+      - name: Run benchmarks (Unix)
+        if: runner.os != 'Windows'
         working-directory: tests
         shell: bash
         env: 
@@ -73,9 +74,9 @@ jobs:
           fi
       
       - name: Rename benchmark results
-        working-directory: tests
         shell: bash
         run: |
+          cd tests
           if [ "$RUNNER_OS" == "Linux" ]; then
             OS_NAME="linux"
           elif [ "$RUNNER_OS" == "Windows" ]; then
