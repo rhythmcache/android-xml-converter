@@ -31,11 +31,7 @@ jobs:
       - name: Install dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-matplotlib python3-psutil pipx
-          pipx install meson
-          pipx install ninja
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+           pip install matplotlib psutil meson ninja
 
       - name: Install dependencies
         if: runner.os == 'Windows'
