@@ -1,8 +1,8 @@
 use android_xml_converter::*;
 use byteorder::{BigEndian, WriteBytesExt};
+use rustc_hash::FxHashMap;
 use quick_xml::Reader;
 use quick_xml::events::Event;
-use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufWriter, Read, Write};
@@ -13,7 +13,7 @@ use std::io::{self, BufRead, BufWriter, Read, Write};
 
 pub struct FastDataOutput<W: Write> {
     writer: W,
-    string_pool: HashMap<String, u16>,
+    string_pool: FxHashMap<String, u16>,
     interned_strings: Vec<String>,
 }
 
@@ -21,7 +21,7 @@ impl<W: Write> FastDataOutput<W> {
     pub fn new(writer: W) -> Self {
         Self {
             writer,
-            string_pool: HashMap::with_capacity(INITIAL_STRING_POOL_CAPACITY),
+            string_pool: FxHashMap::default(),
             interned_strings: Vec::with_capacity(INITIAL_STRING_POOL_CAPACITY),
         }
     }

@@ -36,6 +36,7 @@ base64 = "0.22.1"
 byteorder = "1.5.0"
 hex = "0.4.3"
 quick-xml = "0.38.4"
+rustc-hash = "2.1.1"
 thiserror = "2.0.17"
 
 [profile.release]
