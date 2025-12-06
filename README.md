@@ -20,7 +20,7 @@ This is just an experimental code to convert between android xml formats (abx an
 
 ## Building
 
-#### Build Steps (C/C++ via Meson)
+#### Build Steps (C++ via Meson)
 
 ```bash
 meson setup builddir
