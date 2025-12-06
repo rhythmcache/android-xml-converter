@@ -17,6 +17,7 @@ if sys.platform == 'win32':
     import ctypes
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    sys.stdout.reconfigure(encoding="utf-8")
 
 class Colors:
     GREEN = '\033[92m'
