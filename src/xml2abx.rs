@@ -1,8 +1,9 @@
+use ahash::AHashMap;
 use android_xml_converter::*;
 use byteorder::{BigEndian, WriteBytesExt};
-use ahash::AHashMap;
 use quick_xml::Reader;
 use quick_xml::events::Event;
+use smallvec::SmallVec;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufWriter, Read, Write};
@@ -335,7 +336,9 @@ impl XmlToAbxConverter {
     ) -> Result<()> {
         let mut serializer = BinaryXmlSerializer::with_options(writer, preserve_whitespace)?;
         let mut buf = Vec::with_capacity(INITIAL_EVENT_BUFFER_CAPACITY);
-        let mut tag_stack = Vec::with_capacity(16);
+        //  let mut tag_stack = Vec::with_capacity(16);
+
+        let mut tag_stack: SmallVec<[String; 16]> = SmallVec::new();
 
         serializer.start_document()?;
 
