@@ -26,7 +26,15 @@ This is just an experimental code to convert between android xml formats (abx an
 
 This project was initially started in C++, but has since been migrated to Rust for improved memory safety and performance. The C++ implementation still exists in the repository for reference purposes and ease of comparison.
 
-## Building
+## Installation 
+
+- Can be installed directly by running
+```bash
+cargo install android-xml-converter
+# Needs Cargo
+```
+
+## Building Manually 
 
 - Clone the repo
 
@@ -35,14 +43,13 @@ git clone --depth 1 https://github.com/rhythmcache/android-xml-converter.git
 cd android-xml-converter
 ```
 
-### Rust (Recommended)
+- Build Rust Version (Recommended)
 
 ```bash
 cargo build --release
-# Needs rust toolchain and cargo installed
 ```
 
-### C++ (via Meson)
+- Build C++ version (via Meson)
 
 ```bash
 meson setup builddir
