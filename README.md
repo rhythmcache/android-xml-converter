@@ -28,6 +28,13 @@ This project was initially started in C++, but has since been migrated to Rust f
 
 ## Building
 
+- Clone the repo
+
+```bash
+git clone --depth 1 https://github.com/rhythmcache/android-xml-converter.git
+cd android-xml-converter
+```
+
 ### Rust (Recommended)
 
 ```bash
