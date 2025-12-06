@@ -182,14 +182,14 @@ def create_benchmark_chart(results, system_info, output_file='benchmark_results.
     
     y_pos2 = max(rust_abx2xml_mean, cpp_abx2xml_mean) * 0.85
     ax.annotate(f'{winner_abx2xml}\n{speedup_abx2xml:.2f}x faster', 
-                xy=(4, y_pos2), fontsize=11, fontweight='bold',
+                xy=(2.5, y_pos2), fontsize=11, fontweight='bold',
                 ha='center', va='center',
                 bbox=dict(boxstyle='round,pad=0.5', facecolor='#FFD700', alpha=0.8, edgecolor='black', linewidth=1.5))
 
     rust_patch = mpatches.Patch(color='#E74C3C', label='Rust', alpha=0.85)
     cpp_patch = mpatches.Patch(color='#3498DB', label='C++', alpha=0.85)
-    ax.legend(handles=[rust_patch, cpp_patch], loc='upper right', fontsize=13, 
-              frameon=True, shadow=True, fancybox=True)
+    # ax.legend(handles=[rust_patch, cpp_patch], loc='upper right', fontsize=13, 
+              #frameon=True, shadow=True, fancybox=True)
     
     specs_text = (f"System Specifications: OS: {system_info['os']} {system_info['os_version']} | "
                   f"Architecture: {system_info['architecture']} | Processor: {system_info['processor']} | "
@@ -209,8 +209,6 @@ def create_benchmark_chart(results, system_info, output_file='benchmark_results.
     return output_file
 
 def main():
-    print_header("🚀 Professional XML Converter Benchmark")
-    
     if not os.path.exists("gen_xml.py"):
         print(f"{Colors.RED}Error: Run from tests/ directory{Colors.END}")
         sys.exit(1)

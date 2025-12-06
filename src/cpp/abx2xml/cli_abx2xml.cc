@@ -4,12 +4,15 @@
 #include <vector>
 
 void print_usage(std::string_view program_name) {
-    std::cerr << "Usage: " << program_name << " [OPTIONS] <input> [output]\n\n";
-    std::cerr << "Converts Android Binary XML (ABX) to human-readable XML.\n\n";
+    std::cerr << "Usage: " << program_name << " [OPTIONS] <input> [output]\n";
+    std::cerr << "\n";
+    std::cerr << "Converts Android Binary XML (ABX) to human-readable XML.\n";
+    std::cerr << "\n";
     std::cerr << "Arguments:\n";
     std::cerr << "  input              Input file path (use '-' for stdin)\n";
     std::cerr << "  output             Output file path (use '-' for stdout)\n";
-    std::cerr << "                     If not specified, defaults to stdout or in-place\n\n";
+    std::cerr << "                     If not specified, defaults to stdout or in-place\n";
+    std::cerr << "\n";
     std::cerr << "Options:\n";
     std::cerr << "  -i, --in-place     Overwrite input file with converted output\n";
     std::cerr << "  -h, --help         Show this help message\n";

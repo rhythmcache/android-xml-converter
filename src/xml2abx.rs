@@ -506,14 +506,20 @@ impl XmlToAbxConverter {
 // CLI
 // ============================================================================
 
-fn print_help(bin_name: &str) {
-    eprintln!("Usage: {} [options] <input.xml> [output.abx]", bin_name);
+fn print_help(program_name: &str) {
+    eprintln!("Usage: {} [OPTIONS] <input.xml> [output.abx]", program_name);
+    eprintln!();
+    eprintln!("Converts human-readable XML to Android Binary XML (ABX).");
+    eprintln!();
+    eprintln!("Arguments:");
+    eprintln!("  input.xml          Input XML file path (use '-' for stdin)");
+    eprintln!("  output.abx         Output ABX file path (use '-' for stdout)");
+    eprintln!("                     If not specified, defaults to stdout or in-place");
+    eprintln!();
     eprintln!("Options:");
     eprintln!("  -i, --in-place            Overwrite input file with output");
-    eprintln!("  -c, --collapse-whitespace Collapse whitespace");
-    eprintln!("  -h, --help                Show this help");
-    eprintln!();
-    eprintln!("Use '-' for stdin/stdout");
+    eprintln!("  -c, --collapse-whitespace Collapse whitespace in text content");
+    eprintln!("  -h, --help                Show this help message");
 }
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

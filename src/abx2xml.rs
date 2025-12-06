@@ -440,16 +440,20 @@ struct Cli;
 
 impl Cli {
     fn print_help(program_name: &str) {
-        eprintln!("Usage: {} [OPTIONS] <input> [output]\n", program_name);
-        eprintln!("Converts Android Binary XML (ABX) to human-readable XML.\n");
+        eprintln!("Usage: {} [OPTIONS] <input> [output]", program_name);
+        eprintln!();
+        eprintln!("Converts Android Binary XML (ABX) to human-readable XML.");
+        eprintln!();
         eprintln!("Arguments:");
         eprintln!("  input              Input file path (use '-' for stdin)");
         eprintln!("  output             Output file path (use '-' for stdout)");
-        eprintln!("                     If not specified, defaults to stdout or in-place\n");
+        eprintln!("                     If not specified, defaults to stdout or in-place");
+        eprintln!();
         eprintln!("Options:");
         eprintln!("  -i, --in-place     Overwrite input file with converted output");
         eprintln!("  -h, --help         Show this help message");
     }
+
     fn run() -> Result<()> {
         let mut args = env::args();
         let bin_name = args

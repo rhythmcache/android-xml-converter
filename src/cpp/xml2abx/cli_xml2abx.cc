@@ -6,13 +6,19 @@
 
 
 void print_usage(const char* program_name) {
-    std::cerr << "Usage: " << program_name << " [options] <input.xml> [output.abx]" << std::endl;
-    std::cerr << "Options:" << std::endl;
-    std::cerr << "  -i, --in-place            Overwrite input file with output" << std::endl;
-    std::cerr << "  -c, --collapse-whitespace Collapse whitespace" << std::endl;
-    std::cerr << "  -h, --help                Show this help" << std::endl;
-    std::cerr << std::endl;
-    std::cerr << "Use '-' for stdin/stdout" << std::endl;
+    std::cerr << "Usage: " << program_name << " [OPTIONS] <input.xml> [output.abx]\n";
+    std::cerr << "\n";
+    std::cerr << "Converts human-readable XML to Android Binary XML (ABX).\n";
+    std::cerr << "\n";
+    std::cerr << "Arguments:\n";
+    std::cerr << "  input.xml          Input XML file path (use '-' for stdin)\n";
+    std::cerr << "  output.abx         Output ABX file path (use '-' for stdout)\n";
+    std::cerr << "                     If not specified, defaults to stdout or in-place\n";
+    std::cerr << "\n";
+    std::cerr << "Options:\n";
+    std::cerr << "  -i, --in-place            Overwrite input file with output\n";
+    std::cerr << "  -c, --collapse-whitespace Collapse whitespace in text content\n";
+    std::cerr << "  -h, --help                Show this help message\n";
 }
 
 int main(int argc, char* argv[]) {
