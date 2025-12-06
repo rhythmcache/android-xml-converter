@@ -15,11 +15,15 @@ jobs:
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
       
-      - name: Install hyperfine
-        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      - name: Install hyperfine (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: cargo install hyperfine
+      
+      - name: Install hyperfine (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: cargo install hyperfine
       
       - name: Setup Python
@@ -30,13 +34,18 @@ jobs:
       - name: Install dependencies
         run: pip install matplotlib psutil meson ninja
       
-      - name: Run tests
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
         working-directory: tests
-        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        shell: pwsh
         env: 
           PYTHONENCODING: utf-8
         run: |
-          if (Get-Command python3 -ErrorAction SilentlyContinue) { python3 test.py } else { python test.py }
+          if (Get-Command python3 -ErrorAction SilentlyContinue) { 
+            python3 test.py 
+          } else { 
+            python test.py 
+          }
       
       - name: Run tests (Unix)
         if: runner.os != 'Windows'
@@ -58,7 +67,11 @@ jobs:
         env: 
           PYTHONENCODING: utf-8
         run: |
-          if (Get-Command python3 -ErrorAction SilentlyContinue) { python3 benchmark.py } else { python benchmark.py }
+          if (Get-Command python3 -ErrorAction SilentlyContinue) { 
+            python3 benchmark.py 
+          } else { 
+            python benchmark.py 
+          }
       
       - name: Run benchmarks (Unix)
         if: runner.os != 'Windows'
@@ -73,18 +86,23 @@ jobs:
             python benchmark.py
           fi
       
-      - name: Rename benchmark results
+      - name: Rename benchmark results (Windows)
+        if: runner.os == 'Windows'
+        working-directory: tests
+        shell: pwsh
+        run: Rename-Item benchmark_results.png benchmark_windows.png
+      
+      - name: Rename benchmark results (Linux)
+        if: runner.os == 'Linux'
+        working-directory: tests
         shell: bash
-        run: |
-          cd tests
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            OS_NAME="linux"
-          elif [ "$RUNNER_OS" == "Windows" ]; then
-            OS_NAME="windows"
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            OS_NAME="macos"
-          fi
-          mv benchmark_results.png benchmark_${OS_NAME}.png
+        run: mv benchmark_results.png benchmark_linux.png
+      
+      - name: Rename benchmark results (macOS)
+        if: runner.os == 'macOS'
+        working-directory: tests
+        shell: bash
+        run: mv benchmark_results.png benchmark_macos.png
       
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
