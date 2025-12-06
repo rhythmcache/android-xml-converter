@@ -68,3 +68,7 @@ Performance comparison across different platforms:
 
 
 - [BinaryXmlSerializer.java](https://cs.android.com/android/platform/superproject/main/+/main:/frameworks/libs/modules-utils/java/com/android/modules/utils/BinaryXmlSerializer.java)
+
+
+### License
+- Licensed under [Apache-2](https://raw.githubusercontent.com/rhythmcache/android-xml-converter/main/LICENSE)
