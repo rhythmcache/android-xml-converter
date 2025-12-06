@@ -20,6 +20,9 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install hyperfine
+        run: cargo install hyperfine
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -39,7 +42,6 @@ jobs:
         run: |
           pip install matplotlib psutil meson ninja
 
-      
       - name: Install dependencies
         if: runner.os == 'macOS'
         run: |
