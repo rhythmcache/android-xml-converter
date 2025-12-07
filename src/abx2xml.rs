@@ -17,12 +17,12 @@ pub struct DataInput<R: Read> {
 
 impl<R: Read> DataInput<R> {
     pub fn new(reader: R) -> Self {
-        Self {
-            reader,
-            interned_strings: Vec::new(),
-            peeked_byte: None,
-        }
+    Self {
+        reader,
+        interned_strings: Vec::with_capacity(INITIAL_STRING_POOL_CAPACITY),
+        peeked_byte: None,
     }
+}
 
     pub fn read_byte(&mut self) -> Result<u8> {
         if let Some(byte) = self.peeked_byte.take() {
@@ -160,7 +160,8 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
     }
 
     pub fn deserialize(&mut self) -> Result<()> {
-        write!(self.output, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
+        self.output
+            .write_all(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
 
         loop {
             match self.process_token() {
@@ -181,7 +182,6 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
 
         Ok(())
     }
-
     fn process_token(&mut self) -> Result<bool> {
         let token = self.input.read_byte()?;
         let command = token & 0x0F;
@@ -192,7 +192,8 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
             END_DOCUMENT => Ok(false),
             START_TAG => {
                 let tag_name = self.input.read_interned_utf()?;
-                write!(self.output, "<{}", tag_name)?;
+                self.output.write_all(b"<")?;
+                self.output.write_all(tag_name.as_bytes())?;
 
                 while let Ok(next_token) = self.input.peek_byte() {
                     if (next_token & 0x0F) != ATTRIBUTE {
@@ -203,19 +204,22 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
                     self.process_attribute(next_token)?;
                 }
 
-                write!(self.output, ">")?;
+                self.output.write_all(b">")?;
                 Ok(true)
             }
             END_TAG => {
                 let tag_name = self.input.read_interned_utf()?;
-                write!(self.output, "</{}>", tag_name)?;
+                self.output.write_all(b"</")?;
+                self.output.write_all(tag_name.as_bytes())?;
+                self.output.write_all(b">")?;
                 Ok(true)
             }
             TEXT => {
                 if type_info == TYPE_STRING {
                     let text = self.input.read_utf()?;
                     if !text.is_empty() {
-                        write!(self.output, "{}", encode_xml_entities(&text))?;
+                        let encoded = encode_xml_entities(&text);
+                        self.output.write_all(encoded.as_bytes())?;
                     }
                 }
                 Ok(true)
@@ -223,42 +227,52 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
             CDSECT => {
                 if type_info == TYPE_STRING {
                     let text = self.input.read_utf()?;
-                    write!(self.output, "<![CDATA[{}]]>", text)?;
+                    self.output.write_all(b"<![CDATA[")?;
+                    self.output.write_all(text.as_bytes())?;
+                    self.output.write_all(b"]]>")?;
                 }
                 Ok(true)
             }
             COMMENT => {
                 if type_info == TYPE_STRING {
                     let text = self.input.read_utf()?;
-                    write!(self.output, "<!--{}-->", text)?;
+                    self.output.write_all(b"<!--")?;
+                    self.output.write_all(text.as_bytes())?;
+                    self.output.write_all(b"-->")?;
                 }
                 Ok(true)
             }
             PROCESSING_INSTRUCTION => {
                 if type_info == TYPE_STRING {
                     let text = self.input.read_utf()?;
-                    write!(self.output, "<?{}?>", text)?;
+                    self.output.write_all(b"<?")?;
+                    self.output.write_all(text.as_bytes())?;
+                    self.output.write_all(b"?>")?;
                 }
                 Ok(true)
             }
             DOCDECL => {
                 if type_info == TYPE_STRING {
                     let text = self.input.read_utf()?;
-                    write!(self.output, "<!DOCTYPE {}>", text)?;
+                    self.output.write_all(b"<!DOCTYPE ")?;
+                    self.output.write_all(text.as_bytes())?;
+                    self.output.write_all(b">")?;
                 }
                 Ok(true)
             }
             ENTITY_REF => {
                 if type_info == TYPE_STRING {
                     let text = self.input.read_utf()?;
-                    write!(self.output, "&{};", text)?;
+                    self.output.write_all(b"&")?;
+                    self.output.write_all(text.as_bytes())?;
+                    self.output.write_all(b";")?;
                 }
                 Ok(true)
             }
             IGNORABLE_WHITESPACE => {
                 if type_info == TYPE_STRING {
                     let text = self.input.read_utf()?;
-                    write!(self.output, "{}", text)?;
+                    self.output.write_all(text.as_bytes())?;
                 }
                 Ok(true)
             }
@@ -272,16 +286,21 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
     fn process_attribute(&mut self, token: u8) -> Result<()> {
         let type_info = token & 0xF0;
         let name = self.input.read_interned_utf()?;
-        write!(self.output, " {}=\"", name)?;
+
+        self.output.write_all(b" ")?;
+        self.output.write_all(name.as_bytes())?;
+        self.output.write_all(b"=\"")?;
 
         match type_info {
             TYPE_STRING => {
                 let value = self.input.read_utf()?;
-                write!(self.output, "{}", encode_xml_entities(&value))?;
+                let encoded = encode_xml_entities(&value);
+                self.output.write_all(encoded.as_bytes())?;
             }
             TYPE_STRING_INTERNED => {
                 let value = self.input.read_interned_utf()?;
-                write!(self.output, "{}", encode_xml_entities(&value))?;
+                let encoded = encode_xml_entities(&value);
+                self.output.write_all(encoded.as_bytes())?;
             }
             TYPE_INT => {
                 let value = self.input.read_int()?;
@@ -324,28 +343,29 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
                 }
             }
             TYPE_BOOLEAN_TRUE => {
-                write!(self.output, "true")?;
+                self.output.write_all(b"true")?;
             }
             TYPE_BOOLEAN_FALSE => {
-                write!(self.output, "false")?;
+                self.output.write_all(b"false")?;
             }
             TYPE_BYTES_HEX => {
                 let length = self.input.read_short()?;
                 let bytes = self.input.read_bytes(length)?;
-                write!(self.output, "{}", hex_string(&bytes))?;
+                let hex = hex_string(&bytes);
+                self.output.write_all(hex.as_bytes())?;
             }
             TYPE_BYTES_BASE64 => {
                 let length = self.input.read_short()?;
                 let bytes = self.input.read_bytes(length)?;
                 let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                write!(self.output, "{}", encoded)?;
+                self.output.write_all(encoded.as_bytes())?;
             }
             _ => {
                 return Err(ConversionError::UnknownAttributeType(type_info));
             }
         }
 
-        write!(self.output, "\"")?;
+        self.output.write_all(b"\"")?;
         Ok(())
     }
 }
