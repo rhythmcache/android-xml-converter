@@ -244,12 +244,11 @@ impl<W: Write> BinaryXmlSerializer<W> {
     }
 
     pub fn processing_instruction(&mut self, target: &str, data: Option<&str>) -> Result<()> {
-        if let Some(data) = data {
-            if !data.is_empty() {
+        if let Some(data) = data
+            && !data.is_empty() {
                 let full_pi = format!("{} {}", target, data);
                 return self.write_token(PROCESSING_INSTRUCTION, Some(&full_pi));
             }
-        }
         self.write_token(PROCESSING_INSTRUCTION, Some(target))
     }
 
