@@ -1,6 +1,7 @@
 use android_xml_converter::*;
 use base64::Engine;
 use faster_hex::hex_string;
+use smol_str::SmolStr;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Cursor, Read, Write};
@@ -11,18 +12,18 @@ use std::io::{self, BufReader, BufWriter, Cursor, Read, Write};
 
 pub struct DataInput<R: Read> {
     reader: R,
-    interned_strings: Vec<String>,
+    interned_strings: Vec<SmolStr>,
     peeked_byte: Option<u8>,
 }
 
 impl<R: Read> DataInput<R> {
     pub fn new(reader: R) -> Self {
-    Self {
-        reader,
-        interned_strings: Vec::with_capacity(INITIAL_STRING_POOL_CAPACITY),
-        peeked_byte: None,
+        Self {
+            reader,
+            interned_strings: Vec::with_capacity(INITIAL_STRING_POOL_CAPACITY),
+            peeked_byte: None,
+        }
     }
-}
 
     pub fn read_byte(&mut self) -> Result<u8> {
         if let Some(byte) = self.peeked_byte.take() {
@@ -107,12 +108,14 @@ impl<R: Read> DataInput<R> {
             .map_err(|_| ConversionError::ReadError("UTF string (invalid UTF-8)".to_string()))
     }
 
-    pub fn read_interned_utf(&mut self) -> Result<String> {
+    pub fn read_interned_utf(&mut self) -> Result<SmolStr> {
+        // Changed from Result<String>
         let index = self.read_short()?;
         if index == INTERNED_STRING_NEW_MARKER {
             let string = self.read_utf()?;
-            self.interned_strings.push(string.clone());
-            Ok(string)
+            let smol = SmolStr::new(string);
+            self.interned_strings.push(smol.clone());
+            Ok(smol)
         } else {
             self.interned_strings
                 .get(index as usize)
