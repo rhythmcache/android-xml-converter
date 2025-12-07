@@ -1,5 +1,6 @@
 use android_xml_converter::*;
 use base64::Engine;
+use faster_hex::hex_string;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Cursor, Read, Write};
@@ -331,7 +332,7 @@ impl<R: Read, W: Write> BinaryXmlDeserializer<R, W> {
             TYPE_BYTES_HEX => {
                 let length = self.input.read_short()?;
                 let bytes = self.input.read_bytes(length)?;
-                write!(self.output, "{}", hex::encode(&bytes))?;
+                write!(self.output, "{}", hex_string(&bytes))?;
             }
             TYPE_BYTES_BASE64 => {
                 let length = self.input.read_short()?;

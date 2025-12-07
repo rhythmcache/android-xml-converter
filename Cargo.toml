@@ -35,9 +35,10 @@ path = "src/lib.rs"
 ahash = "0.8.12"
 base64 = "0.22.1"
 byteorder = "1.5.0"
-hex = "0.4.3"
+faster-hex = { version = "0.10.0", default-features = false, features = ["alloc"] }
 quick-xml = "0.38.4"
 smallvec = "1.15.1"
+smol_str = "0.3.4"
 thiserror = "2.0.17"
 
 [profile.release]

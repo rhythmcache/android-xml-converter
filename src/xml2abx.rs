@@ -4,6 +4,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use smallvec::SmallVec;
+use smol_str::SmolStr;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufWriter, Read, Write};
@@ -14,8 +15,8 @@ use std::io::{self, BufRead, BufWriter, Read, Write};
 
 pub struct FastDataOutput<W: Write> {
     writer: W,
-    string_pool: AHashMap<String, u16>,
-    interned_strings: Vec<String>,
+    string_pool: AHashMap<SmolStr, u16>,
+    interned_strings: Vec<SmolStr>,
 }
 
 impl<W: Write> FastDataOutput<W> {
@@ -71,14 +72,15 @@ impl<W: Write> FastDataOutput<W> {
     }
 
     pub fn write_interned_utf(&mut self, s: &str) -> Result<()> {
-        if let Some(&index) = self.string_pool.get(s) {
+        let smol = SmolStr::new(s);
+        if let Some(&index) = self.string_pool.get(&smol) {
             self.write_short(index)?;
         } else {
             self.write_short(INTERNED_STRING_NEW_MARKER)?;
             self.write_utf(s)?;
             let index = self.interned_strings.len() as u16;
-            self.string_pool.insert(s.to_string(), index);
-            self.interned_strings.push(s.to_string());
+            self.string_pool.insert(smol.clone(), index);
+            self.interned_strings.push(smol);
         }
         Ok(())
     }
@@ -101,7 +103,7 @@ impl<W: Write> FastDataOutput<W> {
 pub struct BinaryXmlSerializer<W: Write> {
     output: FastDataOutput<W>,
     tag_count: usize,
-    tag_names: Vec<String>,
+    tag_names: SmallVec<[SmolStr; 8]>,
     preserve_whitespace: bool,
 }
 
@@ -116,7 +118,7 @@ impl<W: Write> BinaryXmlSerializer<W> {
         Ok(Self {
             output,
             tag_count: 0,
-            tag_names: Vec::with_capacity(8),
+            tag_names: SmallVec::new(),
             preserve_whitespace,
         })
     }
@@ -143,9 +145,9 @@ impl<W: Write> BinaryXmlSerializer<W> {
     pub fn start_tag(&mut self, name: &str) -> Result<()> {
         if self.tag_count == self.tag_names.len() {
             let new_size = self.tag_count + std::cmp::max(1, self.tag_count / 2);
-            self.tag_names.resize(new_size, String::new());
+            self.tag_names.resize(new_size, SmolStr::default());
         }
-        self.tag_names[self.tag_count] = name.to_string();
+        self.tag_names[self.tag_count] = SmolStr::new(name);
         self.tag_count += 1;
 
         self.output.write_byte(START_TAG | TYPE_STRING_INTERNED)?;
@@ -336,9 +338,7 @@ impl XmlToAbxConverter {
     ) -> Result<()> {
         let mut serializer = BinaryXmlSerializer::with_options(writer, preserve_whitespace)?;
         let mut buf = Vec::with_capacity(INITIAL_EVENT_BUFFER_CAPACITY);
-        //  let mut tag_stack = Vec::with_capacity(16);
-
-        let mut tag_stack: SmallVec<[String; 16]> = SmallVec::new();
+        let mut tag_stack: SmallVec<[SmolStr; 16]> = SmallVec::new();
 
         serializer.start_document()?;
 
@@ -356,7 +356,7 @@ impl XmlToAbxConverter {
                     }
 
                     serializer.start_tag(name)?;
-                    tag_stack.push(name.to_string());
+                    tag_stack.push(SmolStr::new(name));
 
                     for attr in e.attributes() {
                         let attr = attr?;
