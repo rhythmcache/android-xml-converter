@@ -20,6 +20,9 @@ This directory contains some tests
   - Ignores formatting (whitespace, indentation, etc.)
   - Reports actual structural/content differences only
 
+- **`benchmark.py`**
+   - Benches both the versions
+
 ## Test Logic
 
 The test follows a **roundtrip conversion** approach:
@@ -117,4 +120,6 @@ python test.py
 - **Python**
 - **Working C++ and Rust compilers**
 - **Cargo**
+
 - **Meson**
+
